@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тарифы — РОЙ</title>
+<meta name="description" content="Три урока бесплатно навсегда. Подписка 29 zł в месяц или 240 zł в год. Школьная лицензия от 600 zł в год на класс.">
+<link rel="canonical" href="https://oum1d.github.io/roy/pricing.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Тарифы — РОЙ">
+<meta property="og:description" content="Подписка 29 zł в месяц. Школьная лицензия от 600 zł в год на класс.">
+<meta property="og:image" content="https://oum1d.github.io/roy/assets/img/og-cover.png">
+<meta name="theme-color" content="#FBFAF6">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/roy.css">
+<style>
+  .toggle-row{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-block:var(--gap)}
+  .seg{display:flex;border:1px solid var(--line);width:fit-content}
+  .seg button{
+    font:inherit;font-size:.875rem;padding:.55rem 1rem;background:none;border:0;
+    color:var(--ink);cursor:pointer;border-right:1px solid var(--line);
+  }
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .save-note{font-family:var(--mono);font-size:.75rem;color:var(--moss)}
+
+  .plans{display:grid;gap:var(--gap);grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    list-style:none;margin:0;padding:0}
+  .plan{border:1px solid var(--grid);padding:1.5rem;display:flex;flex-direction:column}
+  .plan--main{border-color:var(--ink);border-width:2px}
+  .plan__price{font-family:var(--display);font-weight:500;font-size:3rem;line-height:1;margin:.5rem 0 .1rem;
+    font-variant-numeric:tabular-nums}
+  .plan__price small{font-family:var(--mono);font-size:.8125rem;color:var(--muted)}
+  .plan__sub{font-family:var(--mono);font-size:.75rem;color:var(--muted);min-height:1.2em}
+  .plan ul{list-style:none;margin:1.1rem 0 1.4rem;padding:0;font-size:.9375rem;color:var(--muted)}
+  .plan li{padding-left:1.1rem;position:relative;margin-bottom:.4rem}
+  .plan li::before{content:"·";position:absolute;left:.3rem;color:var(--muted)}
+  .plan .btn{margin-top:auto}
+
+  .compare{margin-block:clamp(48px,6vw,80px)}
+</style>
+</head>
+<body class="paper-grid--soft">
+
+<a class="skip" href="#main">Перейти к содержанию</a>
+
+<header class="site-head">
+  <div class="wrap site-head__in">
+    <a class="brand" href="index.html">РОЙ <span>явления в движении</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav">Меню</button>
+    <nav class="site-nav" id="nav" aria-label="Основная навигация">
+      <a href="catalog.html">Уроки</a>
+      <a href="teachers.html">Учителям</a>
+      <a href="pricing.html" aria-current="page">Тарифы</a>
+      <a href="account.html">Кабинет</a>
+      <a class="btn btn--small btn--cta" href="#plans">Оформить подписку</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <div style="padding-block:var(--gap) 0">
+    <p class="label">Тарифы</p>
+    <h1>Девять уроков открыты всегда</h1>
+    <p class="lead">Без подписки доступны девять уроков целиком, со всеми ползунками. Подписка открывает остальные и сохранение опытов.</p>
+  </div>
+
+  <div class="toggle-row">
+    <div class="seg" role="group" aria-label="Период оплаты" id="period">
+      <button type="button" data-p="month" aria-pressed="true">Помесячно</button>
+      <button type="button" data-p="year" aria-pressed="false">За год</button>
+    </div>
+    <span class="save-note" id="save-note"></span>
+  </div>
+
+  <ul class="plans" id="plans">
+    <li class="plan">
+      <p class="label">Бесплатно</p>
+      <p class="plan__price">0 <small>zł</small></p>
+      <p class="plan__sub">навсегда</p>
+      <ul>
+        <li>9 уроков целиком</li>
+        <li>все ползунки и кнопка «Сломать»</li>
+        <li>ссылка на свой опыт</li>
+        <li>без сохранения опытов в кабинет</li>
+      </ul>
+      <a class="btn btn--ghost" href="catalog.html?free=1">Открыть бесплатные</a>
+    </li>
+
+    <li class="plan plan--main">
+      <p class="label">Подписка</p>
+      <p class="plan__price"><span id="price">29</span> <small>zł</small></p>
+      <p class="plan__sub" id="price-sub">в месяц</p>
+      <ul>
+        <li>все 24 урока</li>
+        <li>сохранение опытов в кабинет</li>
+        <li>карта прогресса</li>
+        <li>новые уроки по мере выхода</li>
+      </ul>
+      <a class="btn btn--cta" href="#payment">Оформить подписку</a>
+    </li>
+
+    <li class="plan">
+      <p class="label">Школьная лицензия</p>
+      <p class="plan__price">от 600 <small>zł</small></p>
+      <p class="plan__sub">в год на класс</p>
+      <ul>
+        <li>доступ для всего класса</li>
+        <li>уроки по темам программы</li>
+        <li>рабочие листы и вопросы</li>
+        <li>счёт и договор для школы</li>
+      </ul>
+      <a class="btn" href="teachers.html#license">Оставить заявку</a>
+    </li>
+  </ul>
+
+  <section class="compare">
+    <p class="label">Что входит</p>
+    <h2>Построчно</h2>
+    <div class="table-scroll">
+      <table class="plain">
+        <caption class="visually-hidden">Сравнение тарифов по возможностям</caption>
+        <thead>
+          <tr><th scope="col">Возможность</th><th scope="col">Бесплатно</th><th scope="col">Подписка</th><th scope="col">Школа</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Уроки</td><td>9</td><td>все 24</td><td>все 24</td></tr>
+          <tr><td>Ползунки и «Сломать»</td><td>да</td><td>да</td><td>да</td></tr>
+          <tr><td>Ссылка на свой опыт</td><td>да</td><td>да</td><td>да</td></tr>
+          <tr><td>Сохранение опытов</td><td>нет</td><td>да</td><td>да</td></tr>
+          <tr><td>Карта прогресса</td><td>нет</td><td>да</td><td>да</td></tr>
+          <tr><td>Рабочие листы</td><td>нет</td><td>нет</td><td>да</td></tr>
+          <tr><td>Счёт для бухгалтерии</td><td>нет</td><td>нет</td><td>да</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="payment" style="padding-block:0 clamp(48px,6vw,80px)">
+    <div style="border:1px solid var(--ochre);padding:clamp(20px,3vw,32px);max-width:var(--measure)">
+      <p class="label">Оплата</p>
+      <h2 style="font-size:1.4rem">Приём платежей ещё не подключён</h2>
+      <p style="color:var(--muted)">
+        В этой сборке нет платёжного провайдера, поэтому кнопка оплаты никуда не ведёт и
+        деньги списать невозможно. Данные банковских карт платформа не принимает и не хранит
+        ни при каких условиях: оплата должна проходить на стороне провайдера — например,
+        Przelewy24, Stripe или PayU — через его собственную защищённую страницу.
+      </p>
+      <p class="label" style="margin-bottom:0">что подключить: провайдер платежей, вебхук подтверждения, выдача доступа — см. README</p>
+    </div>
+  </section>
+
+  <section class="wrap--narrow" style="padding-inline:0;padding-block:0 clamp(48px,6vw,90px)">
+    <p class="label">Частые вопросы</p>
+    <h2>Об оплате и доступе</h2>
+    <details class="faq">
+      <summary>Что будет с бесплатными уроками, если я не оформлю подписку?</summary>
+      <p>Ничего. Три урока остаются открытыми целиком и не превращаются в демонстрацию.</p>
+    </details>
+    <details class="faq">
+      <summary>Подписка продлевается автоматически?</summary>
+      <p>Так планируется. Отменить продление можно будет в кабинете в любой момент, доступ при этом сохранится до конца оплаченного периода.</p>
+    </details>
+    <details class="faq">
+      <summary>Чем школьная лицензия отличается от обычной подписки?</summary>
+      <p>Доступом для всего класса без личных аккаунтов учеников, материалами к уроку и документами для бухгалтерии.</p>
+    </details>
+    <details class="faq">
+      <summary>Можно ли вернуть деньги?</summary>
+      <p>Условия возврата будут описаны в оферте до подключения оплаты. Этот текст должен подготовить юрист — мы не выдаём шаблон за юридический документ.</p>
+    </details>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <span class="mono" style="font-size:.75rem">© <span id="year">2026</span> РОЙ</span>
+    <span><a href="catalog.html">Каталог</a> · <a href="teachers.html">Учителям</a> · <a href="privacy.html">Политика конфиденциальности</a></span>
+  </div>
+</footer>
+
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var MONTH = 29, YEAR = 240;
+
+  var priceEl = document.getElementById('price');
+  var subEl = document.getElementById('price-sub');
+  var noteEl = document.getElementById('save-note');
+  var seg = document.getElementById('period');
+
+  var current = MONTH;
+
+  /* Цена пересчитывается с анимацией: видно, что это одно и то же число,
+     а не подмена блока. */
+  function animateTo(target, sub, note){
+    subEl.textContent = sub;
+    noteEl.textContent = note;
+
+    if (ROY.reducedMotion()){
+      current = target;
+      priceEl.textContent = target;
+      return;
+    }
+
+    var from = current, start = 0, ms = 420;
+    function tick(now){
+      if (!start) start = now;
+      var t = Math.min(1, (now - start) / ms);
+      var e = 1 - Math.pow(1 - t, 3);
+      priceEl.textContent = Math.round(from + (target - from) * e);
+      if (t < 1) requestAnimationFrame(tick);
+      else current = target;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  Array.prototype.forEach.call(seg.querySelectorAll('button'), function(b){
+    b.addEventListener('click', function(){
+      Array.prototype.forEach.call(seg.querySelectorAll('button'), function(o){
+        o.setAttribute('aria-pressed', 'false');
+      });
+      b.setAttribute('aria-pressed', 'true');
+
+      if (b.dataset.p === 'year'){
+        animateTo(YEAR, 'в год · 20 zł в месяц', 'год выгоднее на ' + (MONTH * 12 - YEAR) + ' zł');
+      } else {
+        animateTo(MONTH, 'в месяц', '');
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

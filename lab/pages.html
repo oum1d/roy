@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Все страницы · РОЙ</title>
+<style>
+  body{margin:0;background:#FBFAF6;color:#16181A;
+       font:13px/1.5 ui-monospace,"IBM Plex Mono",Consolas,monospace;padding:14px}
+  h1{font:600 14px/1.3 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  th,td{text-align:left;padding:3px 8px;border-bottom:1px solid #E4E2DA}
+  th{color:#6E7278;font-weight:500}
+  .ok{color:#4A6B4F}
+  .bad{color:#A65543;font-weight:600}
+  iframe{width:1200px;height:800px;border:0;position:absolute;left:-4000px;top:0}
+  #sum{margin:12px 0;padding:8px 10px;border:1px solid #B9BCB6}
+</style>
+</head>
+<body>
+<h1>Все страницы сайта</h1>
+<div id="sum">идёт проверка…</div>
+<table id="out">
+  <thead><tr><th>страница</th><th>заголовок</th><th>что должно было отрисоваться</th><th>итог</th></tr></thead>
+  <tbody></tbody>
+</table>
+<div id="frame"></div>
+
+<script src="../data/lessons.js"></script>
+<script>
+/* Смоук по всему сайту. Проверяем не вёрстку, а то, что скрипты страницы
+   действительно отработали: у каждой есть непустой h1, а там, где содержимое
+   собирается кодом, оно собралось. Если бы скрипт упал, эти узлы не появились
+   бы — так ошибка видна без чтения консоли, которую headless не отдаёт.
+
+   Страницы открываем по одной: тридцать две живые сцены разом — это не
+   проверка сайта, а проверка машины. */
+
+var PAGES = [
+  { url: 'index.html',    need: '#preview-cards .card', min: 6, what: 'карточки-превью' },
+  { url: 'catalog.html',  need: '#cards .card',        min: 24, what: '24 карточки' },
+  { url: 'account.html',  need: 'input#code',           min: 1,  what: 'поле кода доступа' },
+  { url: 'pricing.html',  need: '.plan',               min: 3,  what: 'три тарифа' },
+  { url: 'teachers.html', need: 'a[href*="worksheet"]', min: 20, what: 'ссылки на рабочие листы' },
+  { url: 'privacy.html',  need: 'h2',                  min: 3,  what: 'разделы политики' },
+  { url: '404.html',      need: 'a[href]',             min: 3,  what: 'ссылки-выходы' },
+  { url: 'worksheet.html?id=traffic', need: '.rule-lines', min: 4, what: 'линейки для ответов' }
+];
+
+(window.ROY_LESSONS || []).forEach(function(l){
+  if (l.status !== 'ready') return;
+  /* Кнопку «Показать» ждём только у открытых уроков. У платного видны первые
+     два абзаца, и если параметр упомянут дальше, кнопке взяться неоткуда —
+     это устройство пейволла, а не поломка. */
+  PAGES.push({
+    url: 'lesson.html?id=' + l.id,
+    need: '#controls .control__name', min: 2,
+    also: '.block__try', alsoMin: l.free ? 1 : 0,
+    what: l.free ? 'ползунки и кнопки «Показать»' : 'ползунки (урок платный)'
+  });
+});
+
+var tbody = document.querySelector('#out tbody');
+var box = document.getElementById('frame');
+var bad = 0, i = 0;
+
+function next(){
+  if (i >= PAGES.length){
+    document.getElementById('sum').textContent = bad
+      ? 'НЕ ОТРИСОВАЛОСЬ: ' + bad + ' из ' + PAGES.length
+      : 'ВСЕ ' + PAGES.length + ' СТРАНИЦ ОТРИСОВАЛИСЬ';
+    document.title = bad ? 'PAGES ПРОБЛЕМ ' + bad : 'PAGES OK ' + PAGES.length;
+    return;
+  }
+
+  var p = PAGES[i++];
+  var f = document.createElement('iframe');
+  f.src = '../' + p.url;
+  f.addEventListener('load', function(){
+    var d = f.contentDocument;
+    var h1 = '', n = 0, n2 = 0, err = '';
+
+    try {
+      var h = d.querySelector('h1');
+      h1 = h ? (h.textContent || '').trim() : '';
+      n = d.querySelectorAll(p.need).length;
+      if (p.also) n2 = d.querySelectorAll(p.also).length;
+    } catch (e) { err = e.message; }
+
+    var fail = !!err || !h1 || n < p.min || (p.also && n2 < p.alsoMin);
+    if (fail) bad++;
+
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + p.url + '</td>' +
+      '<td class="' + (h1 ? 'ok' : 'bad') + '">' + (h1.slice(0, 34) || '(пусто)') + '</td>' +
+      '<td>' + p.what + '</td>' +
+      '<td class="' + (fail ? 'bad' : 'ok') + '">' +
+        (err ? err : n + (p.also ? ' + ' + n2 : '') + (fail ? ' — мало' : ' — есть')) +
+      '</td>';
+    tbody.appendChild(tr);
+
+    f.remove();
+    next();
+  });
+  box.appendChild(f);
+}
+
+next();
+</script>
+</body>
+</html>

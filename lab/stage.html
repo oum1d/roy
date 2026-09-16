@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Стоп-кадр и ползунки · РОЙ</title>
+<style>
+  body{margin:0;background:#FBFAF6;color:#16181A;
+       font:13px/1.5 ui-monospace,"IBM Plex Mono",Consolas,monospace;padding:14px}
+  h1{font:600 14px/1.3 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px}
+  #sum{margin:12px 0;padding:8px 10px;border:1px solid #B9BCB6}
+  table{border-collapse:collapse;font-size:12px;width:760px}
+  th,td{text-align:left;padding:3px 8px;border-bottom:1px solid #E4E2DA}
+  th{color:#6E7278;font-weight:500}
+  .bad{color:#A65543;font-weight:600}
+  iframe{width:1200px;height:900px;border:0;position:absolute;left:-4000px;top:0}
+</style>
+</head>
+<body>
+<h1>Стоп-кадр и ползунки на уроке</h1>
+<div id="sum">идёт проверка…</div>
+<table id="out"><thead><tr><th>шаг</th><th>что делаем</th><th>вышло</th><th>ждём</th></tr></thead><tbody></tbody></table>
+<iframe id="f" src="../lesson.html?id=cracks&warm=200"></iframe>
+
+<script>
+/* Главное здесь — что стоп-кадр не превращает урок в картинку: ползунки
+   продолжают отвечать. Движок на изменение параметра у остановленной сцены
+   прогоняет короткую серию шагов, и это видно по самому холсту.
+
+   Кадров в headless почти нет, поэтому «стоит или идёт» по холсту не
+   отличить. Зато прогон по ползунку синхронный — его видно всегда. */
+var f = document.getElementById('f');
+var tbody = document.querySelector('#out tbody');
+var fails = 0;
+
+function row(n, what, got, want, bad){
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td>' + n + '</td><td>' + what + '</td>' +
+    '<td' + (bad ? ' class="bad"' : '') + '>' + got + '</td><td>' + want + '</td>';
+  tbody.appendChild(tr);
+  if (bad) fails++;
+}
+
+f.addEventListener('load', function(){
+  var d = f.contentDocument, w = f.contentWindow;
+  var freeze = d.getElementById('btn-freeze');
+  var canvas = d.getElementById('stage');
+  var share = d.getElementById('share-url');
+
+  if (!freeze || !canvas){
+    document.getElementById('sum').textContent = 'нет кнопки стоп-кадра или холста';
+    document.title = 'STAGE СБОЙ';
+    return;
+  }
+
+  function shot(){
+    try { return canvas.toDataURL(); } catch (e) { return 'нельзя прочитать: ' + e.message; }
+  }
+
+  row(1, 'до нажатия', freeze.textContent.trim() + ' / ' + freeze.getAttribute('aria-pressed'),
+      'Стоп-кадр / false',
+      freeze.textContent.trim() !== 'Стоп-кадр' || freeze.getAttribute('aria-pressed') !== 'false');
+
+  freeze.click();
+  row(2, 'нажали стоп-кадр', freeze.textContent.trim() + ' / ' + freeze.getAttribute('aria-pressed'),
+      'Продолжить / true',
+      freeze.textContent.trim() !== 'Продолжить' || freeze.getAttribute('aria-pressed') !== 'true');
+
+  /* Двигаем первый ползунок, пока сцена стоит. */
+  var slider = d.querySelector('#controls input[type=range]');
+  var before = shot();
+  var label = slider ? (d.querySelector('label[for="' + slider.id + '"]') || {}).textContent : '';
+
+  if (!slider){
+    row(3, 'ползунок', 'не найден', 'есть', true);
+  } else {
+    var lo = parseFloat(slider.min), hi = parseFloat(slider.max);
+    var cur = parseFloat(slider.value);
+    slider.value = String(Math.abs(cur - hi) > Math.abs(cur - lo) ? hi : lo);
+    slider.dispatchEvent(new w.Event('input', { bubbles: true }));
+
+    var after = shot();
+    row(3, 'на стоп-кадре двинули «' + (label || '?').trim() + '»',
+        before === after ? 'холст не изменился' : 'холст пересчитан',
+        'холст пересчитан', before === after);
+
+    row(4, 'сцена после этого', freeze.getAttribute('aria-pressed'), 'true (всё ещё стоит)',
+        freeze.getAttribute('aria-pressed') !== 'true');
+
+    var inUrl = share && share.value.indexOf(slider.id.replace('p-', '') + '=') !== -1;
+    row(5, 'параметр попал в ссылку на опыт', inUrl ? 'да' : 'нет', 'да', !inUrl);
+  }
+
+  freeze.click();
+  row(6, 'нажали ещё раз', freeze.textContent.trim() + ' / ' + freeze.getAttribute('aria-pressed'),
+      'Стоп-кадр / false',
+      freeze.textContent.trim() !== 'Стоп-кадр' || freeze.getAttribute('aria-pressed') !== 'false');
+
+  /* Сброс должен вернуть сцену к началу — холст обязан измениться. */
+  var pre = shot();
+  d.getElementById('btn-reset').click();
+  row(7, 'нажали «Сбросить»', pre === shot() ? 'холст тот же' : 'холст перерисован',
+      'холст перерисован', pre === shot());
+
+  document.getElementById('sum').textContent =
+    fails ? 'ОШИБОК: ' + fails : 'СТОП-КАДР В ПОРЯДКЕ: 7 проверок';
+  document.title = fails ? 'STAGE ПРОБЛЕМ ' + fails : 'STAGE OK';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Плавность и ступени качества · РОЙ</title>
+<style>
+  body{margin:0;background:#FBFAF6;color:#16181A;
+       font:13px/1.5 ui-monospace,"IBM Plex Mono",Consolas,monospace;padding:14px}
+  h1{font:600 14px/1.3 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px}
+  h2{font:500 12px/1.3 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;
+     color:#6E7278;margin:18px 0 6px}
+  table{border-collapse:collapse;font-size:12px;margin-bottom:6px}
+  th,td{text-align:left;padding:3px 9px;border-bottom:1px solid #E4E2DA}
+  th{color:#6E7278;font-weight:500}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .bad{color:#A65543;font-weight:600}
+  .ok{color:#4A6B4F}
+  canvas{position:absolute;left:-4000px}
+  #sum{margin:12px 0;padding:8px 10px;border:1px solid #B9BCB6}
+</style>
+</head>
+<body>
+<h1>Плавность и ступени качества</h1>
+<div id="sum">идёт замер…</div>
+
+<h2>Цена кадра по ступеням</h2>
+<table id="cost"><thead><tr>
+  <th>симуляция</th><th>1.00</th><th>0.75</th><th>0.50</th><th>0.35</th><th>0.22</th><th>во сколько раз дешевле</th>
+</tr></thead><tbody></tbody></table>
+
+<h2>Поведение регулятора</h2>
+<table id="ctl"><thead><tr>
+  <th>что подаём</th><th>ступеней вниз</th><th>ждём</th>
+</tr></thead><tbody></tbody></table>
+
+<script src="../assets/js/engine.js"></script>
+<script src="../assets/js/sims.js"></script>
+<script src="../assets/js/sims2.js"></script>
+<script src="../assets/js/sims3.js"></script>
+<script src="../assets/js/sims4.js"></script>
+<script src="../assets/js/sims5.js"></script>
+<script src="../assets/js/app.js"></script>
+<script>
+/* Две разные проверки в одном месте.
+
+   Первая — сколько стоит кадр каждой симуляции на каждой ступени. Числа
+   получены на этой машине и сами по себе ничего не доказывают про школьный
+   компьютер; важно отношение: во сколько раз нижняя ступень дешевле верхней.
+   Если бы урезание не работало, отношение было бы около единицы.
+
+   Вторая — сам регулятор. Скармливаем ему выдуманные длительности кадров и
+   смотрим, на сколько ступеней он спустится. Ровные 60 кадров — ни на одну;
+   стабильно тяжёлые — до самого низа; один случайный тяжёлый кадр среди
+   ровных — тоже ни на одну, иначе качество падало бы от любого чиха. */
+
+var LEVELS = [1, 0.75, 0.5, 0.35, 0.22];
+var SIMS = ['boids', 'reaction', 'waves', 'ants', 'lightning', 'snowflake', 'canopy', 'flame'];
+
+var costBody = document.querySelector('#cost tbody');
+var ctlBody = document.querySelector('#ctl tbody');
+var worst = 0, worstAt = '';
+var sumTop = 0, sumLow = 0;
+var fails = 0;
+
+function once(sim, q){
+  ROY.setQuality(q);
+  var c = document.createElement('canvas');
+  c.style.width = '1000px'; c.style.height = '620px';
+  document.body.appendChild(c);
+
+  var s = ROY.createScene(c, sim, {});
+  ROY.warmup(s, 150);
+
+  var t0 = performance.now();
+  for (var i = 0; i < 90; i++){ s.impl.step(); s.impl.draw(); }
+  var ms = (performance.now() - t0) / 90;
+
+  s.destroy();
+  c.remove();
+  return ms;
+}
+
+/* Меряем дважды и берём меньшее. Не ради красивых чисел: у кроны и молнии
+   структура вырастает случайно, и разброс между прогонами доходит до
+   полутора раз. Одиночный замер делал бы проверку то зелёной, то красной
+   без единой правки в коде — а такая проверка хуже, чем никакой. */
+function frameCost(sim, q){
+  return Math.min(once(sim, q), once(sim, q));
+}
+
+SIMS.forEach(function(sim){
+  var row = '<td>' + sim + '</td>', top = 0, low = 0;
+  LEVELS.forEach(function(q, k){
+    var ms = frameCost(sim, q);
+    if (k === 0) top = ms;
+    if (k === LEVELS.length - 1) low = ms;
+    /* Судим по нижней ступени: она обязана укладываться в бюджет с запасом,
+       потому что именно её получит слабая машина. */
+    var heavy = (k === LEVELS.length - 1) && ms > 4;
+    if (heavy) fails++;
+    if (ms > worst){ worst = ms; worstAt = sim + ' на ' + q; }
+    row += '<td class="n ' + (heavy ? 'bad' : '') + '">' + ms.toFixed(2) + '</td>';
+  });
+  /* Выигрыш по отдельной симуляции показываем, но по нему не судим: у кроны
+     и молнии структура вырастает случайно, и разброс между прогонами доходит
+     до полутора раз. Проверка, которая от прогона к прогону меняет цвет без
+     единой правки в коде, хуже, чем никакой. Судим ниже — по сумме всех
+     симуляций, где разброс усредняется. */
+  sumTop += top; sumLow += low;
+  var gain = top / Math.max(0.01, low);
+  row += '<td class="n">' + gain.toFixed(1) + '×</td>';
+
+  var tr = document.createElement('tr');
+  tr.innerHTML = row;
+  costBody.appendChild(tr);
+});
+
+ROY.setQuality(1);
+
+/* Сумма по всем симуляциям: здесь разброс отдельных уже усреднился, и на это
+   число можно опираться. Нижняя ступень обязана быть дешевле верхней хотя бы
+   вдвое, иначе урезание не работает. */
+(function(){
+  var gain = sumTop / Math.max(0.01, sumLow);
+  var weak = gain < 2;
+  if (weak) fails++;
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td><b>все восемь вместе</b></td>' +
+    '<td class="n">' + sumTop.toFixed(1) + '</td><td colspan="3"></td>' +
+    '<td class="n">' + sumLow.toFixed(1) + '</td>' +
+    '<td class="n ' + (weak ? 'bad' : 'ok') + '">' + gain.toFixed(1) + '× (нужно ≥2)</td>';
+  costBody.appendChild(tr);
+})();
+
+/* ------------------------------------------- цена самых первых кадров
+
+   Отдельная строка, потому что именно здесь пряталась поломка: стая
+   спавнилась тесным комком, в клетках сетки оказывались сотни птиц, и первые
+   двадцать шагов стоили 42 мс вместо восьми. На экране это было видно как
+   рывки ровно в тот момент, когда страница только открылась. Средняя цена
+   кадра такое не ловит — она усредняет. */
+(function(){
+  ROY.setQuality(1);
+  var c = document.createElement('canvas');
+  c.style.width = '1100px'; c.style.height = '760px';
+  document.body.appendChild(c);
+  var s = ROY.createScene(c, 'boids', { count: 2600, view: 60, sep: 18 });
+
+  function band(steps){
+    var t0 = performance.now();
+    for (var i = 0; i < steps; i++){ s.impl.step(); s.impl.draw(); }
+    return (performance.now() - t0) / steps;
+  }
+
+  var first = band(20);
+  band(400);
+  var settled = band(60);
+  s.destroy(); c.remove();
+
+  /* Первые кадры не должны стоить принципиально дороже установившихся.
+     Тройной запас — с ним поломка в шесть раз была бы поймана сразу. */
+  var ratio = first / Math.max(0.01, settled);
+  var isBad = ratio > 3;
+  if (isBad) fails++;
+
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td>первые 20 кадров против установившихся (2600 птиц)</td>' +
+    '<td class="n ' + (isBad ? 'bad' : 'ok') + '">' +
+      first.toFixed(1) + ' мс против ' + settled.toFixed(1) + ' — в ' + ratio.toFixed(1) + ' раза</td>' +
+    '<td class="n">не дороже чем в 3 раза</td>';
+  ctlBody.appendChild(tr);
+})();
+
+/* --------------------------------------------------- проверка регулятора */
+
+/* Берём тот самый регулятор, что стоит в движке, а не его копию: копия
+   разошлась бы с оригиналом при первой же правке, и стенд начал бы проверять
+   несуществующее поведение. Внутрь ему идут выдуманные длительности кадров —
+   так проверяется договор, не трогая настоящее железо. */
+function controller(frames){
+  var g = ROY.makeQualityGuard(LEVELS);
+  frames.forEach(function(dt){ g.tick(dt); });
+  return g.level();
+}
+
+function repeat(dt, ms){
+  var out = [], t = 0;
+  while (t < ms){ out.push(dt); t += dt; }
+  return out;
+}
+
+function ctlRow(what, got, want){
+  var isBad = got !== want;
+  if (isBad) fails++;
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td>' + what + '</td>' +
+    '<td class="n ' + (isBad ? 'bad' : 'ok') + '">' + got + '</td>' +
+    '<td class="n">' + want + '</td>';
+  ctlBody.appendChild(tr);
+}
+
+ctlRow('ровные 60 кадров, 12 с', controller(repeat(16.7, 12000)), 0);
+ctlRow('ровные 45 кадров (22 мс), 12 с', controller(repeat(22, 12000)), 4);
+ctlRow('тяжёлые 30 мс, 12 с', controller(repeat(30, 12000)), 4);
+ctlRow('очень тяжёлые 60 мс, 5 с — спуск вдвое быстрее', controller(repeat(60, 5000)), 4);
+ctlRow('60 кадров с одним провалом в 120 мс',
+       controller(repeat(16.7, 6000).concat([120], repeat(16.7, 6000))), 0);
+ctlRow('плохо только первую секунду (прогрев)',
+       controller(repeat(40, 1000).concat(repeat(16.7, 11000))), 0);
+
+/* Потолок плотности пикселей: на телефоне это главный выигрыш. */
+var dprRow = document.createElement('tr');
+ROY.setQuality(0.22);
+var low = 1 + ROY.quality;
+ROY.setQuality(1);
+var high = 1 + ROY.quality;
+var dprOk = high === 2 && low < 1.3;
+if (!dprOk) fails++;
+dprRow.innerHTML = '<td>потолок плотности пикселей</td>' +
+  '<td class="n ' + (dprOk ? 'ok' : 'bad') + '">' + high.toFixed(2) + ' → ' + low.toFixed(2) + '</td>' +
+  '<td class="n">2.00 → ниже 1.30</td>';
+ctlBody.appendChild(dprRow);
+
+document.getElementById('sum').textContent = fails
+  ? 'ЗАМЕЧАНИЙ: ' + fails + ' · самый дорогой кадр ' + worst.toFixed(2) + ' мс (' + worstAt + ')'
+  : 'ПЛАВНОСТЬ В ПОРЯДКЕ · самый дорогой кадр ' + worst.toFixed(2) + ' мс (' + worstAt + ')';
+document.title = fails ? 'PERF ПРОБЛЕМ ' + fails : 'PERF OK';
+</script>
+</body>
+</html>

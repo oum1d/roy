@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Политика конфиденциальности — РОЙ</title>
+<meta name="description" content="Какие данные платформа обрабатывает, где они хранятся и как их удалить. Шаблон, подлежащий проверке юристом.">
+<link rel="canonical" href="https://oum1d.github.io/roy/privacy.html">
+<meta name="theme-color" content="#FBFAF6">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/roy.css">
+<style>
+  .doc h2{margin-top:2.2rem}
+  .doc h3{margin-top:1.4rem;font-size:1.1rem}
+  .doc ul{color:var(--muted);max-width:var(--measure)}
+  .doc li{margin-bottom:.4rem}
+  .warn-box{border:2px solid var(--clay);padding:clamp(18px,3vw,28px);margin-bottom:var(--gap)}
+  .warn-box h2{margin-top:0;font-size:1.25rem;color:var(--clay)}
+</style>
+</head>
+<body class="paper-grid--soft">
+
+<a class="skip" href="#main">Перейти к содержанию</a>
+
+<header class="site-head">
+  <div class="wrap site-head__in">
+    <a class="brand" href="index.html">РОЙ <span>явления в движении</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav">Меню</button>
+    <nav class="site-nav" id="nav" aria-label="Основная навигация">
+      <a href="catalog.html">Уроки</a>
+      <a href="teachers.html">Учителям</a>
+      <a href="pricing.html">Тарифы</a>
+      <a href="account.html">Кабинет</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap wrap--narrow doc">
+
+  <div style="padding-block:var(--gap) 0">
+    <p class="label">Документы</p>
+    <h1>Политика конфиденциальности</h1>
+    <p class="lead">Редакция от 7 сентября 2026 года.</p>
+  </div>
+
+  <div class="warn-box">
+    <h2>Это шаблон, а не юридический документ</h2>
+    <p style="margin-bottom:0">
+      Текст ниже описывает, как устроена демонстрационная сборка, и написан разработчиком,
+      а не юристом. Перед запуском на реальном домене его обязан проверить и дополнить
+      юрист — особенно в части GDPR, обработки данных несовершеннолетних и требований
+      польского законодательства. Не публикуйте его как есть.
+    </p>
+  </div>
+
+  <h2>Что платформа обрабатывает сейчас</h2>
+  <p>
+    В нынешней сборке нет сервера, аккаунтов и аналитики. Всё, что вы делаете на сайте,
+    остаётся в вашем браузере.
+  </p>
+  <ul>
+    <li><b>Прогресс по урокам</b> — какие уроки вы дочитали до конца.</li>
+    <li><b>Сохранённые опыты</b> — наборы параметров симуляций и название урока.</li>
+    <li><b>Настройки</b> — нагрузка графики, режим движения, размер шрифта.</li>
+    <li><b>Код входа</b> — строка, которую вы сами ввели в кабинете.</li>
+  </ul>
+  <p>
+    Всё это лежит в <code>localStorage</code> вашего браузера, никуда не передаётся и
+    недоступно нам. Очистка данных сайта в настройках браузера стирает это полностью.
+  </p>
+
+  <h3>Чего нет</h3>
+  <ul>
+    <li>Нет счётчиков, пикселей и рекламных сетей.</li>
+    <li>Нет сбора почты, телефона и имени — формы ничего не отправляют.</li>
+    <li>Нет приёма и хранения данных банковских карт.</li>
+    <li>Нет звука, микрофона, камеры и геолокации.</li>
+  </ul>
+
+  <h2 id="cookies">Файлы cookie</h2>
+  <p>
+    Сайт не устанавливает cookie вообще: ни своих, ни сторонних. Баннер согласия поэтому
+    не показывается — спрашивать не о чем. Если позже появятся аналитика или платежи,
+    баннер станет обязательным, и по умолчанию всё необязательное должно быть выключено.
+  </p>
+  <p>
+    Внешние шрифты подгружаются с Google Fonts, и этот запрос виден их серверам. Если это
+    неприемлемо, шрифты нужно положить рядом с сайтом — как это сделать, написано в README.
+  </p>
+
+  <h2>Что появится при запуске</h2>
+  <p>
+    Как только подключаются аккаунты, оплата и рассылки, состав данных меняется. Ниже —
+    заготовка, которую нужно привести в соответствие с реальной реализацией.
+  </p>
+  <ul>
+    <li>Электронная почта и хеш пароля — для входа.</li>
+    <li>Идентификатор платежа у провайдера — без реквизитов карты.</li>
+    <li>Название школы и контакт — из заявки на лицензию.</li>
+    <li>Технические журналы сервера с усечёнными IP-адресами.</li>
+  </ul>
+
+  <h3>Дети и школы</h3>
+  <p>
+    Платформа рассчитана в том числе на школьников. Личные аккаунты для учеников не
+    планируются: класс работает по школьной лицензии без персональных данных детей.
+    Порядок получения согласия законных представителей должен определить юрист.
+  </p>
+
+  <h2>Ваши права</h2>
+  <ul>
+    <li>Узнать, какие данные о вас есть, и получить их копию.</li>
+    <li>Исправить неточные данные.</li>
+    <li>Потребовать удаления.</li>
+    <li>Отозвать согласие на обработку.</li>
+    <li>Подать жалобу в надзорный орган.</li>
+  </ul>
+  <p>
+    Пока сервера нет, реализовать эти права технически нечем — и это ещё одна причина не
+    публиковать документ до запуска.
+  </p>
+
+  <h2>Контакт</h2>
+  <p>
+    Адрес для обращений по защите данных указывается здесь после регистрации
+    юридического лица. <span class="tag-demo">заполнить перед запуском</span>
+  </p>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <span class="mono" style="font-size:.75rem">© <span id="year">2026</span> РОЙ</span>
+    <span><a href="index.html">Главная</a> · <a href="catalog.html">Каталог</a></span>
+  </div>
+</footer>
+
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

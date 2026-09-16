@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лаборатория · пятна</title>
+<style>
+  :root{ --paper:#FBFAF6; --ink:#16181A; --muted:#6E7278; --line:#B9BCB6; --grid:#E4E2DA; --ultra:#2545E6; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden}
+  body{background:var(--paper);color:var(--ink);
+       font:13px/1.45 ui-sans-serif,system-ui,"Segoe UI",sans-serif}
+  #scene{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;right:14px;top:14px;width:262px;padding:12px 14px 14px;
+    background:rgba(251,250,246,.93);border:1px solid var(--line);
+    font-family:ui-monospace,"IBM Plex Mono",Consolas,monospace;font-size:11px}
+  .panel h1{margin:0 0 10px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    font-weight:600;color:var(--muted)}
+  .row{margin:0 0 9px}
+  .row label{display:flex;justify-content:space-between;gap:8px;margin-bottom:3px;color:var(--muted)}
+  .row b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;height:16px;margin:0;accent-color:var(--ultra);display:block}
+  .presets{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0 2px}
+  .presets button{font:inherit;font-size:10px;padding:4px 7px;background:none;
+    border:1px solid var(--line);color:var(--ink);cursor:pointer}
+  .presets button:hover{border-color:var(--ultra);color:var(--ultra)}
+  .meter{margin-top:11px;padding-top:9px;border-top:1px solid var(--grid);
+    display:flex;justify-content:space-between;color:var(--muted)}
+  .meter b{color:var(--ink)}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div class="panel">
+  <h1>Пятна · Грей—Скотт</h1>
+  <div class="row"><label>подача (feed)<b id="v-f">0.0367</b></label>
+    <input id="s-f" type="range" min="0.010" max="0.090" step="0.0001" value="0.0367"></div>
+  <div class="row"><label>убыль (kill)<b id="v-k">0.0649</b></label>
+    <input id="s-k" type="range" min="0.040" max="0.075" step="0.0001" value="0.0649"></div>
+  <div class="presets">
+    <button data-f="0.0367" data-k="0.0649">деление</button>
+    <button data-f="0.0290" data-k="0.0570">лабиринт</button>
+    <button data-f="0.0545" data-k="0.0620">кораллы</button>
+    <button data-f="0.0350" data-k="0.0650">пятна</button>
+    <button data-f="0.0220" data-k="0.0510">полосы</button>
+  </div>
+  <div class="meter"><span>сетка</span><b id="m-grid">—</b></div>
+  <div class="meter" style="border:0;padding-top:2px"><span>итераций</span><b id="m-it">0</b></div>
+  <div class="meter" style="border:0;padding-top:2px"><span>занято веществом</span><b id="m-fill">—</b></div>
+  <div class="meter" style="border:0;padding-top:2px"><span>адрес</span><b id="m-qs">—</b></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var cv = document.getElementById('scene');
+  var ctx = cv.getContext('2d', { alpha: false });
+
+  /* Сетка держится в низком разрешении и растягивается на экран.
+     Считать реакцию по каждому пикселю холста нельзя: 1440×900 это 1,3 млн
+     клеток на кадр, школьный компьютер такое не переживёт. */
+  var GW = 0, GH = 0, SCALE = 3;   // мельче клетка — меньше мыла при растяжении
+  var A = null, B = null, A2 = null, B2 = null;
+  var img = null, buf = null, off = null, octx = null;
+
+  var P = { f: 0.0367, k: 0.0649 };
+  var DA = 1.0, DB = 0.5, ITER = 6;    // итераций за кадр (сетка стала гуще — считаем реже)
+  var iterations = 0;
+
+  function alloc(w, h){
+    GW = w; GH = h;
+    var n = GW * GH;
+    A = new Float32Array(n); B = new Float32Array(n);
+    A2 = new Float32Array(n); B2 = new Float32Array(n);
+
+    off = document.createElement('canvas');
+    off.width = GW; off.height = GH;
+    octx = off.getContext('2d');
+    img = octx.createImageData(GW, GH);
+    buf = img.data;
+
+    seed();
+    pendingWarm = warmRequest;   // сетку пересобрали — прогрев надо повторить
+    document.getElementById('m-grid').textContent = GW + '×' + GH;
+  }
+
+  function seed(){
+    var n = GW * GH, i;
+    for (i = 0; i < n; i++){ A[i] = 1; B[i] = 0; }
+
+    /* несколько случайных клякс вещества B — из них и вырастет узор */
+    var blobs = 14;
+    for (var s = 0; s < blobs; s++){
+      var cx = (Math.random() * GW) | 0;
+      var cy = (Math.random() * GH) | 0;
+      /* Радиус обязан быть целым: при дробном r индексы получаются нецелыми,
+         а запись по нецелому индексу в типизированный массив молча
+         игнорируется — засев не происходит вообще, и поле остаётся пустым. */
+      var r  = 3 + ((Math.random() * 5) | 0);
+      for (var y = -r; y <= r; y++){
+        for (var x = -r; x <= r; x++){
+          if (x*x + y*y > r*r) continue;
+          var px = (cx + x + GW) % GW, py = (cy + y + GH) % GH;
+          var id = py * GW + px;
+          A[id] = 0.5 + Math.random() * 0.1;
+          B[id] = 0.25 + Math.random() * 0.1;
+        }
+      }
+    }
+    iterations = 0;
+  }
+
+  /* Один шаг реакции-диффузии. Лапласиан по девяти точкам,
+     края замкнуты в тор — узор не упирается в рамку. */
+  function step(){
+    var w = GW, h = GH;
+    var f = P.f, k = P.k;
+
+    for (var y = 0; y < h; y++){
+      var yUp = ((y - 1 + h) % h) * w;
+      var yDn = ((y + 1) % h) * w;
+      var yMd = y * w;
+
+      for (var x = 0; x < w; x++){
+        var xL = (x - 1 + w) % w;
+        var xR = (x + 1) % w;
+        var i  = yMd + x;
+
+        var lapA = A[yUp+xL]*0.05 + A[yUp+x]*0.2 + A[yUp+xR]*0.05
+                 + A[yMd+xL]*0.2  - A[i]         + A[yMd+xR]*0.2
+                 + A[yDn+xL]*0.05 + A[yDn+x]*0.2 + A[yDn+xR]*0.05;
+
+        var lapB = B[yUp+xL]*0.05 + B[yUp+x]*0.2 + B[yUp+xR]*0.05
+                 + B[yMd+xL]*0.2  - B[i]         + B[yMd+xR]*0.2
+                 + B[yDn+xL]*0.05 + B[yDn+x]*0.2 + B[yDn+xR]*0.05;
+
+        var a = A[i], b = B[i];
+        var abb = a * b * b;
+
+        var na = a + (DA*lapA - abb + f*(1 - a));
+        var nb = b + (DB*lapB + abb - (k + f)*b);
+
+        A2[i] = na < 0 ? 0 : na > 1 ? 1 : na;
+        B2[i] = nb < 0 ? 0 : nb > 1 ? 1 : nb;
+      }
+    }
+    var t;
+    t = A; A = A2; A2 = t;
+    t = B; B = B2; B2 = t;
+    iterations++;
+  }
+
+  /* Чернила на бумаге: чем больше вещества B, тем темнее.
+     Никакой радуги — это тетрадь, а не тепловая карта. */
+  var PAPER = [251, 250, 246], INK = [28, 31, 34];
+
+  function draw(){
+    var n = GW * GH, fill = 0;
+    for (var i = 0; i < n; i++){
+      var v = B[i] * 3.9;            // растягиваем рабочий диапазон в контраст
+      if (v > 0.92) v = 0.92;       // не доводим до чистого чёрного: это печать, не заливка
+      if (v > 1) v = 1;
+      if (v > 0.25) fill++;
+      var j = i << 2;
+      buf[j]   = PAPER[0] + (INK[0] - PAPER[0]) * v;
+      buf[j+1] = PAPER[1] + (INK[1] - PAPER[1]) * v;
+      buf[j+2] = PAPER[2] + (INK[2] - PAPER[2]) * v;
+      buf[j+3] = 255;
+    }
+    octx.putImageData(img, 0, 0);
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, 0, 0, cv.width, cv.height);
+
+    document.getElementById('m-it').textContent = iterations;
+    document.getElementById('m-fill').textContent = (fill / n * 100).toFixed(1) + '%';
+  }
+
+  /* ---- цикл ---- */
+  var pendingWarm = 0, warmRequest = 0;
+
+  function frame(){
+    requestAnimationFrame(frame);
+    if (document.hidden) return;
+
+    /* Прогрев выполняется в первом же кадре, а не сразу после разбора адреса:
+       браузер успевает прислать ещё один resize после начальной раскладки,
+       а тот пересоздаёт сетку и обнуляет всё, что было насчитано. */
+    if (pendingWarm > 0){
+      for (var w = 0; w < pendingWarm; w++) step();
+      pendingWarm = 0;
+    }
+
+    for (var i = 0; i < ITER; i++) step();
+    draw();
+  }
+
+  function resize(){
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.round(cv.getBoundingClientRect().width);
+    var h = Math.round(cv.getBoundingClientRect().height);
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    var gw = Math.max(64, Math.round(w / SCALE));
+    var gh = Math.max(48, Math.round(h / SCALE));
+    if (gw !== GW || gh !== GH) alloc(gw, gh);
+  }
+  addEventListener('resize', resize);
+
+  /* ---- управление ---- */
+  function bindRange(id, key, out){
+    var el = document.getElementById(id), lab = document.getElementById(out);
+    el.addEventListener('input', function(){
+      P[key] = parseFloat(el.value);
+      lab.textContent = P[key].toFixed(4);
+    });
+  }
+  bindRange('s-f', 'f', 'v-f');
+  bindRange('s-k', 'k', 'v-k');
+
+  Array.prototype.forEach.call(document.querySelectorAll('.presets button'), function(btn){
+    btn.addEventListener('click', function(){
+      P.f = parseFloat(btn.dataset.f);
+      P.k = parseFloat(btn.dataset.k);
+      document.getElementById('s-f').value = P.f;
+      document.getElementById('s-k').value = P.k;
+      document.getElementById('v-f').textContent = P.f.toFixed(4);
+      document.getElementById('v-k').textContent = P.k.toFixed(4);
+      seed();
+    });
+  });
+
+  /* мазок мышью — досыпать вещества */
+  var painting = false;
+  function paint(e){
+    if (!painting) return;
+    var r = cv.getBoundingClientRect();
+    var gx = Math.round((e.clientX - r.left) / r.width  * GW);
+    var gy = Math.round((e.clientY - r.top)  / r.height * GH);
+    for (var y = -4; y <= 4; y++){
+      for (var x = -4; x <= 4; x++){
+        if (x*x + y*y > 16) continue;
+        var px = (gx + x + GW) % GW, py = (gy + y + GH) % GH;
+        B[py * GW + px] = 0.9;
+      }
+    }
+  }
+  cv.addEventListener('mousedown', function(e){ painting = true; paint(e); });
+  addEventListener('mouseup', function(){ painting = false; });
+  cv.addEventListener('mousemove', paint);
+
+  /* ---- старт + отладочный прогрев ---- */
+  resize();
+
+  var qs = {};
+  location.search.replace(/^\?/, '').split('&').forEach(function(kv){
+    if (!kv) return; var p = kv.split('='); qs[p[0]] = parseFloat(p[1]);
+  });
+  if (isFinite(qs.f)){ P.f = qs.f; document.getElementById('s-f').value = P.f;
+                       document.getElementById('v-f').textContent = P.f.toFixed(4); }
+  if (isFinite(qs.k)){ P.k = qs.k; document.getElementById('s-k').value = P.k;
+                       document.getElementById('v-k').textContent = P.k.toFixed(4); }
+  if (isFinite(qs.warm) && qs.warm > 0) warmRequest = pendingWarm = Math.min(qs.warm, 40000);
+  document.getElementById("m-qs").textContent = (location.search || "пусто") + " w=" + pendingWarm;
+  if (isFinite(qs.bare)) document.querySelector('.panel').style.display = 'none';
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Проверка поиска · РОЙ</title>
+<style>
+  body{margin:0;background:#FBFAF6;color:#16181A;
+       font:13px/1.5 ui-monospace,"JetBrains Mono",Consolas,monospace;padding:14px}
+  h1{font:600 14px/1.3 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #E4E2DA;vertical-align:top}
+  th{color:#6E7278;font-weight:500}
+  .ok{color:#4A6B4F}
+  .bad{color:#A65543;font-weight:600}
+  iframe{width:1100px;height:800px;border:0;position:absolute;left:-4000px;top:0}
+  #sum{margin:12px 0;padding:8px 10px;border:1px solid #B9BCB6}
+</style>
+</head>
+<body>
+<h1>Проверка поиска по каталогу</h1>
+<div id="sum">идёт проверка…</div>
+<table id="out">
+  <thead><tr><th>запрос</th><th>ждём</th><th>нашлось</th><th>что именно</th><th>подсветка</th></tr></thead>
+  <tbody></tbody>
+</table>
+<iframe id="f" src="../catalog.html"></iframe>
+
+<script>
+/* Гоняем настоящую страницу каталога в кадре: вводим запрос в поле и
+   читаем, что она показала. Проверяем не «функция вернула массив», а то,
+   что видит учитель. */
+var CASES = [
+  { q: 'скворц',   has: 'starlings', min: 1 },
+  { q: 'трещин',   has: 'cracks',  min: 1 },
+  { q: 'ё',        skip: true },                       /* короткий запрос игнорируется */
+  { q: 'пробка',   has: 'traffic', min: 1 },
+  { q: 'муравь',   has: 'ants',    min: 1 },
+  { q: 'феромон',  has: 'ants',    min: 1, mark: 0 },  /* термина нет в тексте, только в синонимах */
+  { q: 'молния ветв', has: 'lightning', min: 1 },      /* два слова, оба должны найтись */
+  { q: 'ЁЛКА',     want: [] },                         /* такого нет */
+  { q: 'светляк',  has: 'fireflies', min: 1 },         /* склонение: в тексте «светлячки» */
+  { q: 'мурмурация', has: 'starlings', min: 1, mark: 0 },
+  { q: 'меандр',   has: 'river',   min: 1, mark: 0 },
+  { q: '<b>x',     skip: true }                        /* разметка не должна пролезть */
+];
+
+var tbody = document.querySelector('#out tbody');
+var f = document.getElementById('f');
+var fails = 0;
+
+function row(cells, bad){
+  var tr = document.createElement('tr');
+  tr.innerHTML = cells.map(function(c, i){
+    return '<td' + (i > 0 && bad ? ' class="bad"' : '') + '>' + c + '</td>';
+  }).join('');
+  tbody.appendChild(tr);
+}
+
+window.addEventListener('error', function(e){
+  document.getElementById('sum').textContent = 'СКРИПТ УПАЛ: ' + e.message;
+  document.title = 'SEARCH СБОЙ';
+});
+
+f.addEventListener('load', function(){
+  var d = f.contentDocument;
+  var input = d.getElementById('q');
+  var i = 0;
+
+  if (!input){
+    document.getElementById('sum').textContent = 'в каталоге нет поля #q';
+    document.title = 'SEARCH СБОЙ';
+    return;
+  }
+  document.getElementById('sum').textContent = 'каталог загружен, гоняем запросы…';
+
+  function next(){
+    if (i >= CASES.length){
+      document.getElementById('sum').textContent =
+        fails ? 'ОШИБОК: ' + fails : 'ПОИСК В ПОРЯДКЕ: ' + CASES.length + ' запросов';
+      document.title = fails ? 'SEARCH ПРОБЛЕМ ' + fails : 'SEARCH OK ' + CASES.length;
+      return;
+    }
+    var c = CASES[i++];
+
+    input.value = c.q;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    /* Ввод намеренно с задержкой, ждём дольше неё. */
+    setTimeout(function(){
+      var ids = [].map.call(d.querySelectorAll('#cards a.card'), function(a){
+        return a.getAttribute('href').replace('lesson.html?id=', '');
+      });
+      var marks = d.querySelectorAll('#cards mark').length;
+      var raw = d.getElementById('cards').innerHTML;
+
+      var bad = false, note = '';
+
+      if (c.skip){
+        /* Однобуквенный запрос не должен ничего отфильтровывать. */
+        if (ids.length !== 24) { bad = true; note = 'короткий запрос не должен фильтровать'; }
+      } else if (c.want){
+        if (ids.length !== c.want.length) { bad = true; note = 'ждали ' + c.want.length; }
+        c.want.forEach(function(id){ if (ids.indexOf(id) === -1) { bad = true; note = 'нет ' + id; } });
+      } else {
+        if (ids.length < c.min) { bad = true; note = 'слишком мало'; }
+        if (ids.indexOf(c.has) === -1) { bad = true; note = 'нет ' + c.has; }
+        /* Совпадение по синониму подсвечивать негде — слова нет на карточке. */
+        if (c.mark !== 0 && !marks) { bad = true; note = 'нет подсветки'; }
+        if (c.mark === 0 && d.querySelectorAll('#cards .card__why').length === 0){
+          bad = true; note = 'не объяснило, почему нашлось';
+        }
+      }
+
+      /* Запрос с разметкой не должен превратиться в теги на странице. */
+      if (c.q.indexOf('<') !== -1 && raw.indexOf('<b>') !== -1){
+        bad = true; note = 'разметка из запроса попала в вывод';
+      }
+
+      if (bad) fails++;
+      row([
+        c.q.replace(/</g, '&lt;'),
+        c.skip ? 'все 24' : c.want ? c.want.join(', ') || '—' : c.has,
+        ids.length,
+        ids.slice(0, 4).join(', ') || '—',
+        marks + (note ? ' · ' + note : '')
+      ], bad);
+
+      next();
+    }, 320);
+  }
+
+  next();
+});
+</script>
+</body>
+</html>

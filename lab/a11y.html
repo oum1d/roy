@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Аудит доступности · РОЙ</title>
+<style>
+  body{margin:0;background:#FBFAF6;color:#16181A;
+       font:13px/1.5 ui-monospace,"JetBrains Mono",Consolas,monospace;padding:14px}
+  h1{font:600 14px/1.3 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #E4E2DA;vertical-align:top}
+  th{color:#6E7278;font-weight:500}
+  .ok{color:#4A6B4F}
+  .bad{color:#A65543;font-weight:600}
+  iframe{width:1100px;height:700px;border:0;position:absolute;left:-4000px;top:0}
+  #sum{margin:12px 0;padding:8px 10px;border:1px solid #B9BCB6}
+</style>
+</head>
+<body>
+<h1>Аудит доступности</h1>
+<div id="sum">идёт проверка…</div>
+<table id="out">
+  <thead><tr><th>страница</th><th>h1</th><th>порядок заголовков</th><th>ярлыки полей</th>
+  <th>холсты</th><th>ссылки без текста</th><th>картинки без alt</th><th>язык</th></tr></thead>
+  <tbody></tbody>
+</table>
+<div id="frames"></div>
+
+<script>
+/* Проверяем то, что реально ломает доступность и при этом проверяется
+   машинно: структуру заголовков, ярлыки у полей, текстовые альтернативы.
+   Контраст и работу с клавиатуры так не проверить — это отдельно, руками. */
+var PAGES = [
+  'index.html', 'catalog.html', 'lesson.html?id=starlings', 'lesson.html?id=leopard',
+  'account.html', 'pricing.html', 'teachers.html', 'privacy.html', '404.html',
+  'worksheet.html?id=traffic'
+];
+
+var tbody = document.querySelector('#out tbody');
+var frames = document.getElementById('frames');
+var problems = 0;
+var done = 0;
+
+function cell(v, bad){ return '<td class="' + (bad ? 'bad' : 'ok') + '">' + v + '</td>'; }
+
+/* Скрытый узел не попадает в дерево доступности, и считать его нельзя:
+   на странице урока и в кабинете есть взаимоисключающие состояния, у каждого
+   свой h1, но одновременно виден ровно один. */
+function visible(el, win){
+  for (var n = el; n && n.nodeType === 1; n = n.parentElement){
+    if (n.hasAttribute('hidden')) return false;
+    var cs = win.getComputedStyle(n);
+    if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return false;
+  }
+  return true;
+}
+
+function shown(list, win){
+  var out = [];
+  for (var i = 0; i < list.length; i++) if (visible(list[i], win)) out.push(list[i]);
+  return out;
+}
+
+function check(doc, win){
+  var r = {};
+
+  r.h1 = shown(doc.querySelectorAll('h1'), win).length;
+
+  /* Порядок заголовков: уровень не должен прыгать больше чем на один. */
+  var hs = shown(doc.querySelectorAll('h1,h2,h3,h4,h5,h6'), win);
+  var prev = 0, jumps = 0;
+  for (var i = 0; i < hs.length; i++){
+    var lvl = parseInt(hs[i].tagName.slice(1), 10);
+    if (prev && lvl > prev + 1) jumps++;
+    prev = lvl;
+  }
+  r.jumps = jumps;
+
+  /* Каждое поле должно иметь ярлык: <label for>, aria-label или aria-labelledby. */
+  var fields = doc.querySelectorAll('input:not([type=hidden]),select,textarea');
+  var unlabelled = 0;
+  for (var k = 0; k < fields.length; k++){
+    var f = fields[k];
+    var has = (f.id && doc.querySelector('label[for="' + f.id + '"]')) ||
+              f.getAttribute('aria-label') || f.getAttribute('aria-labelledby') ||
+              f.closest('label');
+    if (!has) unlabelled++;
+  }
+  r.fields = unlabelled;
+
+  /* Холст либо описан текстом, либо честно помечен как декоративный. */
+  var canvases = doc.querySelectorAll('canvas');
+  var badCanvas = 0;
+  for (var c = 0; c < canvases.length; c++){
+    var cv = canvases[c];
+    var okc = cv.getAttribute('aria-hidden') === 'true' ||
+              cv.getAttribute('aria-label') || cv.getAttribute('aria-labelledby') ||
+              cv.getAttribute('aria-describedby') || cv.getAttribute('role') === 'presentation';
+    if (!okc) badCanvas++;
+  }
+  r.canvas = badCanvas;
+
+  var links = doc.querySelectorAll('a[href]');
+  var emptyLinks = 0;
+  for (var l = 0; l < links.length; l++){
+    var t = (links[l].textContent || '').trim();
+    if (!t && !links[l].getAttribute('aria-label')) emptyLinks++;
+  }
+  r.links = emptyLinks;
+
+  var imgs = doc.querySelectorAll('img');
+  var noAlt = 0;
+  for (var m = 0; m < imgs.length; m++){
+    if (imgs[m].getAttribute('alt') === null) noAlt++;
+  }
+  r.imgs = noAlt;
+
+  r.lang = doc.documentElement.getAttribute('lang') || '—';
+  return r;
+}
+
+PAGES.forEach(function(page){
+  var f = document.createElement('iframe');
+  f.src = '../' + page;
+  f.addEventListener('load', function(){
+    /* Ждём, пока страница устоится. На главной первые секунды идёт
+       вступление: стая складывается в надпись, а заголовок ещё спрятан, и
+       проверка «ровно один h1» честно показала бы ноль. Аудит должен судить
+       то состояние, в котором читатель остаётся, а не первый кадр. Про сам
+       промежуток без заголовка написано в README, в ограничениях. */
+    setTimeout(function(){ run(); }, 4500);
+
+  function run(){
+    var r;
+    try { r = check(f.contentDocument, f.contentWindow); }
+    catch (e) { r = null; }
+
+    var tr = document.createElement('tr');
+    if (!r){
+      tr.innerHTML = '<td>' + page + '</td><td colspan="7" class="bad">не удалось прочитать</td>';
+      problems++;
+    } else {
+      var bad = (r.h1 !== 1 ? 1 : 0) + (r.jumps ? 1 : 0) + (r.fields ? 1 : 0) +
+                (r.canvas ? 1 : 0) + (r.links ? 1 : 0) + (r.imgs ? 1 : 0) +
+                (r.lang === 'ru' ? 0 : 1);
+      problems += bad;
+      tr.innerHTML = '<td>' + page + '</td>' +
+        cell(r.h1, r.h1 !== 1) +
+        cell(r.jumps ? r.jumps + ' скачк.' : 'ровно', r.jumps) +
+        cell(r.fields ? r.fields + ' без ярлыка' : 'все', r.fields) +
+        cell(r.canvas ? r.canvas + ' без описания' : 'все', r.canvas) +
+        cell(r.links || 'нет', r.links) +
+        cell(r.imgs || 'нет', r.imgs) +
+        cell(r.lang, r.lang !== 'ru');
+    }
+    tbody.appendChild(tr);
+
+    if (++done === PAGES.length){
+      document.getElementById('sum').textContent =
+        problems === 0 ? 'ВСЁ ЧИСТО: замечаний нет на ' + PAGES.length + ' страницах'
+                       : 'ЗАМЕЧАНИЙ: ' + problems;
+      document.title = problems === 0 ? 'A11Y OK ' + PAGES.length : 'A11Y ПРОБЛЕМ ' + problems;
+    }
+  }
+  });
+  frames.appendChild(f);
+});
+</script>
+</body>
+</html>

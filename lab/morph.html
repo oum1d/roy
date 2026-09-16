@@ -1,0 +1,58 @@
+<!doctype html><meta charset="utf-8"><title>сборка в буквы</title>
+<style>html,body{margin:0;height:100%;background:#FBFAF6}
+canvas{display:block;width:100vw;height:100vh}
+#m{position:fixed;left:10px;bottom:10px;font:12px ui-monospace,monospace;
+   background:rgba(251,250,246,.9);border:1px solid #B9BCB6;padding:6px 9px}</style>
+<canvas id=c></canvas>
+<div id=m></div>
+<script src="../assets/js/engine.js"></script>
+<script src="../assets/js/sims.js"></script>
+<script src="../assets/js/sims2.js"></script>
+<script src="../assets/js/app.js"></script>
+<script>
+var q = ROY.query();
+var count = parseInt(q.count || '1400', 10);
+var s = ROY.createScene(document.getElementById('c'), 'boids', { count: count, sep: 16, coh: 0.75 });
+ROY.warmup(s, 600);
+
+var pts = ROY.samplePoints('24\nявления', s.W, s.H, s.impl.boidCount(), {
+  size: Math.min(s.W * 0.17, s.H * 0.26)
+});
+if (pts) s.impl.setTargets(pts);
+s.impl.setMorph(parseFloat(q.mix || '1'));
+ROY.warmup(s, parseInt(q.warm || '260', 10));
+
+/* Надпись обязана дышать: собравшись, стая не должна превратиться в
+   неподвижную картинку. Меряем, насколько птицы сдвигаются уже ПОСЛЕ того,
+   как всё сошлось, — и насколько далеко они при этом уходят от своей точки.
+   Первое должно быть заметно больше нуля, второе — меньше пары пикселей,
+   иначе буквы поплывут. */
+var probe = '';
+if (pts && parseFloat(q.mix || '1') > 0.9){
+  ROY.warmup(s, 900);                     // дать сойтись наверняка
+  var a = s.impl.positions();
+  ROY.warmup(s, 60);                      // секунда жизни
+  var b = s.impl.positions();
+
+  var moved = 0, drift = 0, n = a.length / 2;
+  for (var i = 0; i < n; i++){
+    var dx = b[i * 2] - a[i * 2], dy = b[i * 2 + 1] - a[i * 2 + 1];
+    moved += Math.sqrt(dx * dx + dy * dy);
+    var ex = b[i * 2] - pts[i * 2], ey = b[i * 2 + 1] - pts[i * 2 + 1];
+    drift += Math.sqrt(ex * ex + ey * ey);
+  }
+  moved /= n; drift /= n;
+
+  var alive = moved > 0.15;
+  var sharp = drift < 2.6;
+  probe = 'за секунду сдвиг ' + moved.toFixed(2) + ' px · от своей точки ' +
+          drift.toFixed(2) + ' px';
+  document.getElementById('m').textContent =
+    'птиц ' + n + ' · точек ' + (pts.length / 2) + ' · ' + probe;
+  document.title = (alive && sharp) ? 'MORPH OK' :
+    'MORPH ПРОБЛЕМ' + (alive ? '' : ' застыла') + (sharp ? '' : ' расплылась');
+} else {
+  document.getElementById('m').textContent = pts ? ('точек ' + (pts.length / 2)) : 'НЕТ ТОЧЕК';
+  document.title = pts ? 'точек ' + (pts.length / 2) : 'НЕТ ТОЧЕК';
+}
+</script>

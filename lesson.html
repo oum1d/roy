@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок — РОЙ</title>
+<meta name="description" content="Урок платформы РОЙ: работающая симуляция природного явления с параметрами, которые можно менять прямо во время объяснения.">
+<link rel="canonical" href="https://oum1d.github.io/roy/lesson.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Урок — РОЙ">
+<meta property="og:description" content="Симуляция, которую можно взять за ползунок и сломать.">
+<meta property="og:image" content="https://oum1d.github.io/roy/assets/img/og-cover.png">
+<meta name="theme-color" content="#FBFAF6">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/roy.css">
+<style>
+  .lesson{
+    display:grid;gap:var(--gap);
+    grid-template-columns:minmax(0,42fr) minmax(0,58fr);
+    align-items:start;
+    padding-block:var(--gap) clamp(48px,6vw,80px);
+  }
+  @media (max-width:980px){ .lesson{grid-template-columns:1fr} }
+
+  /* Сцена всегда видна: она липнет к верху, пока рядом прокручивается текст.
+
+     Правая колонка прокручивается сама по себе. Иначе низ панели параметров
+     недостижим: липкий блок выше экрана просто обрезается, и до последнего
+     ползунка не добраться никаким скроллом. Теперь курсор слева листает
+     страницу, курсор справа — панель. */
+  .lesson__stage{
+    position:sticky;top:calc(var(--head-h) + 12px);
+    display:flex;flex-direction:column;gap:.8rem;
+    order:2;
+    max-height:calc(100vh - var(--head-h) - 24px);
+    overflow-y:auto;
+    scrollbar-width:thin;
+    scrollbar-color:var(--line) transparent;
+    padding-right:.35rem;
+  }
+  /* Полосу рисуем сами: браузерная серая плашка спорит с бумагой. */
+  .lesson__stage::-webkit-scrollbar{width:8px}
+  .lesson__stage::-webkit-scrollbar-track{background:transparent}
+  .lesson__stage::-webkit-scrollbar-thumb{
+    background:var(--line);border-radius:4px;
+    border:2px solid var(--paper);
+  }
+  .lesson__stage::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+  @media (max-width:980px){
+    /* В одну колонку делить прокрутку не на что. */
+    .lesson__stage{
+      order:0;position:sticky;top:var(--head-h);
+      max-height:none;overflow:visible;padding-right:0;
+    }
+  }
+
+  .stage-canvas{
+    position:relative;aspect-ratio:4/3;border:1px solid var(--line);background:var(--paper);
+  }
+  @media (max-width:980px){ .stage-canvas{aspect-ratio:16/11} }
+  .stage-canvas canvas{display:block;width:100%;height:100%}
+
+  .stage-tools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  .stage-tools .spacer{flex:1}
+  /* Подпись стоит в разметке сразу за кнопкой «Сломать», которую и объясняет —
+     диктор прочитает её там, где она к месту. На экране кнопок стало четыре,
+     и в одну строку с ними подпись уже не помещается, поэтому уводим её вниз
+     отдельной строкой. */
+  .stage-tools #chaos-note{order:9;flex-basis:100%;margin-top:.15rem}
+
+  .panel{
+    border:1px solid var(--grid);padding:1rem 1.1rem;
+  }
+  .panel h2{font-size:1rem;font-family:var(--mono);font-weight:500;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.9rem}
+
+  .presets{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1rem}
+
+  /* Текст: по одному правилу на блок. */
+  .lesson__text{order:1;max-width:60ch}
+  .block{
+    padding-block:clamp(28px,7vh,72px);
+    border-bottom:1px solid var(--grid);
+  }
+  .block:last-of-type{border-bottom:0}
+  .block h2{font-size:clamp(1.3rem,2.2vw,1.75rem)}
+  /* Раньше параметр уезжал сам, стоило абзацу попасть в середину экрана.
+     Выглядело как «ползунки живут своей жизнью»: читатель прокручивал текст
+     туда-сюда, и сцена дёргалась без его участия. Теперь это кнопка —
+     показ идёт тогда, когда его попросили. */
+  .block__try{
+    display:inline-flex;align-items:baseline;gap:.5rem;margin-top:.7rem;
+    font-family:var(--mono);font-size:.6875rem;letter-spacing:.05em;
+    text-align:left;color:var(--ink);cursor:pointer;
+    background:none;border:1px solid var(--line);border-left:2px solid var(--ink);
+    padding:.45rem .7rem;border-radius:var(--radius);
+    transition:border-color .12s ease, color .12s ease;
+  }
+  .block__try:hover{border-color:var(--ink)}
+  .block__try b{
+    font-weight:500;white-space:nowrap;text-transform:uppercase;letter-spacing:.11em;
+  }
+  .block__try span{color:var(--muted)}
+  .block__try:hover span{color:var(--ink)}
+  .block__try[data-shown="1"]{color:var(--muted);border-left-color:var(--line)}
+  .block__try[data-shown="1"] b::after{content:" ещё раз"}
+  .block.is-active h2{position:relative}
+  .block.is-active h2::before{
+    content:"";position:absolute;left:-1rem;top:.35em;width:4px;height:1em;
+    background:var(--ultra);
+  }
+  @media (max-width:980px){ .block.is-active h2::before{display:none} }
+
+  .lesson-head{padding-block:var(--gap) 0}
+  .lesson-head__meta{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.6rem}
+
+  .nature{display:grid;gap:var(--gap);grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    list-style:none;margin:0;padding:0}
+  .nature figure{margin:0}
+  .nature .fig{border:1px solid var(--grid);background:var(--paper)}
+  .nature .fig svg{display:block;width:100%;height:auto}
+  .nature figcaption{font-size:.8125rem;color:var(--muted);margin-top:.4rem}
+
+  .quiz{border-top:1px solid var(--line);padding-top:var(--gap)}
+  .quiz__item{margin-bottom:2rem}
+  .quiz__q{font-weight:600;font-size:1.1rem;line-height:1.4;margin-bottom:.7rem}
+  .quiz__opts{display:flex;flex-direction:column;gap:.4rem;align-items:flex-start}
+  .quiz__opts button{
+    font:inherit;font-size:.9375rem;text-align:left;
+    background:none;border:1px solid var(--line);color:var(--ink);
+    padding:.6rem .8rem;cursor:pointer;border-radius:var(--radius);width:100%;
+  }
+  .quiz__opts button:hover{border-color:var(--ink)}
+  .quiz__opts button[aria-pressed="true"]{border-color:var(--ultra)}
+  .quiz__answer{
+    margin-top:.7rem;padding-left:.9rem;border-left:2px solid var(--moss);
+    color:var(--muted);font-size:.9375rem;
+  }
+
+  .paywall{
+    border:1px solid var(--ochre);padding:1.3rem;margin-top:var(--gap);
+  }
+  .paywall h2{font-family:var(--display);font-size:1.3rem;text-transform:none;
+    letter-spacing:0;color:var(--ink);margin-bottom:.4rem}
+
+  .lesson-nav{
+    display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    border-top:1px solid var(--line);padding-top:1.2rem;margin-top:var(--gap);
+  }
+
+  .related{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}
+  .related a{
+    display:flex;justify-content:space-between;gap:1rem;align-items:baseline;
+    border:1px solid var(--grid);padding:.7rem .85rem;
+    text-decoration:none;color:var(--ink);border-radius:var(--radius);
+  }
+  .related a:hover{border-color:var(--ink)}
+  .related b{font-family:var(--sans);font-weight:600;font-size:1rem}
+  .related span{font-family:var(--mono);font-size:.6875rem;color:var(--muted);white-space:nowrap}
+
+  .share{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.8rem}
+  .share input{
+    flex:1;min-width:180px;font-family:var(--mono);font-size:.75rem;
+    padding:.5rem .6rem;border:1px solid var(--line);background:var(--paper);color:var(--muted);
+  }
+</style>
+</head>
+<body class="paper-grid--soft">
+
+<a class="skip" href="#main">Перейти к содержанию</a>
+
+<header class="site-head">
+  <div class="wrap site-head__in">
+    <a class="brand" href="index.html">РОЙ <span>явления в движении</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav">Меню</button>
+    <nav class="site-nav" id="nav" aria-label="Основная навигация">
+      <a href="catalog.html" aria-current="page">Уроки</a>
+      <a href="teachers.html">Учителям</a>
+      <a href="pricing.html">Тарифы</a>
+      <a href="account.html">Кабинет</a>
+      <a class="btn btn--small btn--cta" href="pricing.html">Оформить подписку</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <div class="lesson-head" id="lesson-head"></div>
+
+  <div class="lesson" id="lesson-body" hidden>
+
+    <!-- сцена -->
+    <div class="lesson__stage">
+      <div class="stage-canvas">
+        <canvas id="stage" aria-describedby="stage-desc"></canvas>
+        <div class="scene__start" id="stage-start" hidden>
+          <button class="btn" type="button" id="stage-play">Запустить</button>
+        </div>
+      </div>
+      <p class="visually-hidden" id="stage-desc" aria-live="polite"></p>
+
+      <div class="stage-tools">
+        <button class="btn btn--ghost btn--small" type="button" id="btn-reset">Сбросить</button>
+        <button class="btn btn--ghost btn--small" type="button" id="btn-chaos">Сломать</button>
+        <button class="btn btn--ghost btn--small" type="button" id="btn-freeze"
+                aria-pressed="false">Стоп-кадр</button>
+        <span class="label" id="chaos-note">не бойтесь. кнопка «сбросить» рядом</span>
+        <span class="spacer"></span>
+        <button class="btn btn--small" type="button" id="btn-save">Сохранить опыт</button>
+      </div>
+
+      <div class="panel" id="params-panel">
+        <h2>Параметры</h2>
+        <div class="presets" id="presets"></div>
+        <div id="controls"></div>
+        <div class="share">
+          <label class="visually-hidden" for="share-url">Ссылка на этот опыт</label>
+          <input id="share-url" readonly value="">
+          <button class="btn btn--ghost btn--small" type="button" id="btn-copy">Скопировать ссылку</button>
+        </div>
+        <p class="label" style="margin:.7rem 0 0">все параметры попадают в адрес страницы</p>
+      </div>
+    </div>
+
+    <!-- текст -->
+    <div class="lesson__text">
+      <div id="blocks"></div>
+
+      <section aria-labelledby="nature-h" style="padding-block:clamp(28px,5vh,56px) 0">
+        <p class="label">Где это в природе</p>
+        <h2 id="nature-h" style="font-size:clamp(1.3rem,2.2vw,1.75rem)">То же самое вне экрана</h2>
+        <ul class="nature" id="nature"></ul>
+        <p class="note" style="margin-top:1rem">
+          Это схемы, а не фотографии: они нарисованы кодом и показывают механизм, а не
+          внешний вид. Если для запуска нужны настоящие снимки, добавьте их рядом —
+          с подтверждённой лицензией и указанием автора.
+        </p>
+      </section>
+
+      <section class="quiz" id="quiz-wrap" style="margin-top:clamp(28px,5vh,56px)">
+        <p class="label">Проверь себя</p>
+        <h2 style="font-size:clamp(1.3rem,2.2vw,1.75rem)">Три вопроса без баллов</h2>
+        <p style="color:var(--muted)">Правильных ответов вам никто не покажет. Выберите любой — и посмотрите, что станет со сценой.</p>
+        <div id="quiz"></div>
+      </section>
+
+      <section id="related-wrap" hidden style="padding-block:clamp(28px,5vh,56px) 0">
+        <p class="label">Рядом</p>
+        <h2 style="font-size:clamp(1.3rem,2.2vw,1.75rem)">Тот же механизм в другом месте</h2>
+        <ul class="related" id="related"></ul>
+      </section>
+
+      <nav class="lesson-nav" id="lesson-nav" aria-label="Соседние уроки"></nav>
+    </div>
+  </div>
+
+  <div id="not-found" hidden style="padding-block:clamp(48px,10vw,120px)">
+    <p class="label">Ошибка</p>
+    <h1>Такого урока нет</h1>
+    <p class="lead">Возможно, ссылка устарела или в адресе опечатка.</p>
+    <p><a class="btn" href="catalog.html">Открыть каталог</a></p>
+  </div>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <span class="mono" style="font-size:.75rem">© <span id="year">2026</span> РОЙ</span>
+    <span><a href="catalog.html">Каталог</a> · <a href="pricing.html">Тарифы</a> · <a href="privacy.html">Политика конфиденциальности</a></span>
+  </div>
+</footer>
+
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/sims.js"></script>
+<script src="assets/js/sims2.js"></script>
+<script src="assets/js/sims3.js"></script>
+<script src="assets/js/sims4.js"></script>
+<script src="assets/js/sims5.js"></script>
+<script src="assets/js/figures.js"></script>
+<script src="data/lessons.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var q = ROY.query();
+  var lesson = ROY.lesson(q.id || 'starlings');
+
+  if (!lesson || lesson.status !== 'ready'){
+    document.getElementById('not-found').hidden = false;
+    document.title = 'Урок не найден — РОЙ';
+    return;
+  }
+
+  document.title = lesson.title + ' — РОЙ';
+  var metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) metaDesc.setAttribute('content', lesson.lead);
+
+  var access = ROY.hasAccess(lesson);
+
+  /* ------------------------------------------------------------ заголовок */
+
+  document.getElementById('lesson-head').innerHTML =
+    '<p class="lesson-head__meta">' +
+      '<span class="label">Урок ' + String(lesson.n).padStart(2, '0') + '</span>' +
+      '<span class="badge">' + lesson.section + '</span>' +
+      '<span class="badge">' + lesson.grade + ' класс</span>' +
+      '<span class="badge">' + lesson.minutes + ' мин</span>' +
+      (lesson.free ? '<span class="badge badge--free">бесплатно</span>'
+                   : '<span class="badge badge--lock">по подписке</span>') +
+    '</p>' +
+    '<h1>' + lesson.title + '</h1>' +
+    '<p class="lead">' + lesson.intro + '</p>';
+
+  document.getElementById('lesson-body').hidden = false;
+
+  /* --------------------------------------------------------------- сцена */
+
+  var def = ROY.getSim(lesson.sim);
+  var canvas = document.getElementById('stage');
+  var startValues = ROY.paramsFromQuery(def);
+  var scene = ROY.createScene(canvas, lesson.sim, startValues);
+  var descEl = document.getElementById('stage-desc');
+
+  function refreshDesc(){ if (scene) descEl.textContent = scene.impl.describe(); }
+  refreshDesc();
+
+  /* ------------------------------------------------------------ стоп-кадр */
+
+  /* Учителю нужно остановить картинку и разобрать её с классом: показать
+     пальцем на тройной стык, дождаться вопроса, только потом отпустить.
+     Ползунки при этом продолжают работать — движок сам прогоняет короткую
+     серию шагов на каждое изменение, иначе стоп-кадр не отвечал бы на
+     «а что если». */
+  var freeze = document.getElementById('btn-freeze');
+  var startBox = document.getElementById('stage-start');
+
+  function syncFreeze(){
+    var stopped = !!(scene && scene.paused);
+    freeze.setAttribute('aria-pressed', stopped ? 'true' : 'false');
+    freeze.textContent = stopped ? 'Продолжить' : 'Стоп-кадр';
+  }
+
+  freeze.addEventListener('click', function(){
+    if (!scene) return;
+    if (scene.paused){
+      scene.play();
+      if (startBox) startBox.hidden = true;
+    } else {
+      scene.pause();
+    }
+    syncFreeze();
+  });
+
+  /* при выключенном движении сцена стоит и ждёт явного разрешения */
+  if (ROY.reducedMotion()){
+    startBox.hidden = false;
+    document.getElementById('stage-play').addEventListener('click', function(){
+      scene.play();
+      startBox.hidden = true;
+      syncFreeze();
+    });
+  }
+
+  syncFreeze();
+
+  /* ------------------------------------------------------------ ползунки */
+
+  var controls = document.getElementById('controls');
+  var inputs = {};
+
+  def.params.forEach(function(spec){
+    var row = document.createElement('div');
+    row.className = 'control';
+    var id = 'p-' + spec.key;
+
+    if (spec.type === 'seed'){
+      var b = document.createElement('button');
+      b.className = 'btn btn--ghost btn--small';
+      b.type = 'button';
+      b.textContent = spec.label + ': другой вариант';
+      b.addEventListener('click', function(){
+        scene.set(spec.key, Math.floor(Math.random() * 100000));
+        syncShare(); refreshDesc();
+      });
+      row.appendChild(b);
+      controls.appendChild(row);
+      return;
+    }
+
+    var top = document.createElement('div');
+    top.className = 'control__top';
+    top.innerHTML = '<label class="control__name" for="' + id + '">' + spec.label + '</label>' +
+                    '<output class="control__val" for="' + id + '"></output>';
+
+    var hint = document.createElement('span');
+    hint.className = 'control__hint';
+    hint.id = id + '-hint';
+    hint.textContent = spec.hint;
+
+    var input = document.createElement('input');
+    input.type = 'range'; input.id = id;
+    input.min = spec.min; input.max = spec.max; input.step = spec.step;
+    input.value = scene.p[spec.key];
+    input.setAttribute('aria-describedby', id + '-hint');
+
+    var out = top.querySelector('output');
+    out.textContent = fmt(spec, scene.p[spec.key]);
+
+    input.addEventListener('input', function(){
+      scene.set(spec.key, input.value);
+      out.textContent = fmt(spec, scene.p[spec.key]);
+      syncShare(); refreshDesc();
+    });
+
+    var scale = document.createElement('div');
+    scale.className = 'control__scale';
+    scale.innerHTML = '<span>' + fmt(spec, spec.min) + '</span><span>' + fmt(spec, spec.max) + '</span>';
+
+    row.appendChild(top); row.appendChild(hint); row.appendChild(input); row.appendChild(scale);
+    controls.appendChild(row);
+
+    inputs[spec.key] = { input: input, out: out, spec: spec };
+  });
+
+  function fmt(spec, v){
+    return spec.decimals ? Number(v).toFixed(spec.decimals) : String(Math.round(v));
+  }
+
+  function syncInputs(){
+    Object.keys(inputs).forEach(function(k){
+      var it = inputs[k];
+      it.input.value = scene.p[k];
+      it.out.textContent = fmt(it.spec, scene.p[k]);
+    });
+    syncShare();
+  }
+
+  /* Ползунки должны догонять сцену, когда её меняет прокрутка текста. */
+  setInterval(function(){
+    Object.keys(inputs).forEach(function(k){
+      var it = inputs[k];
+      if (Math.abs(parseFloat(it.input.value) - scene.p[k]) > 1e-6){
+        it.input.value = scene.p[k];
+        it.out.textContent = fmt(it.spec, scene.p[k]);
+      }
+    });
+  }, 220);
+
+  /* ------------------------------------------------------------- пресеты */
+
+  if (def.presets){
+    var pbox = document.getElementById('presets');
+    def.presets.forEach(function(p){
+      var b = document.createElement('button');
+      b.className = 'chip'; b.type = 'button';
+      b.textContent = p.label;
+      b.addEventListener('click', function(){
+        scene.setAll(p.values);
+        scene.reset();
+        syncInputs(); refreshDesc();
+      });
+      pbox.appendChild(b);
+    });
+  }
+
+  /* -------------------------------------------------------------- кнопки */
+
+  document.getElementById('btn-reset').addEventListener('click', function(){
+    var defaults = {};
+    def.params.forEach(function(s){ defaults[s.key] = s.value; });
+    scene.setAll(defaults);
+    scene.reset();
+    syncInputs(); refreshDesc();
+  });
+
+  /* «Сломать» уводит параметры за разумные пределы — и делает это видимо:
+     ручки ползунков едут сами. Право сломать входит в урок. */
+  document.getElementById('btn-chaos').addEventListener('click', function(){
+    def.params.forEach(function(spec){
+      if (spec.type === 'seed') return;
+      var extreme = Math.random() > 0.5 ? spec.max : spec.min;
+      ROY.tweenParam(scene, spec.key, extreme, 950);
+    });
+    document.getElementById('chaos-note').textContent = 'параметры за пределами реальности';
+    setTimeout(function(){ syncInputs(); refreshDesc(); }, 1000);
+  });
+
+  /* ------------------------------------------------------- сохранить опыт */
+
+  var saveBtn = document.getElementById('btn-save');
+
+  if (!access){
+    saveBtn.setAttribute('aria-disabled', 'true');
+    saveBtn.title = 'Сохранение опытов доступно по подписке';
+  }
+
+  saveBtn.addEventListener('click', function(){
+    if (!access){ window.location.href = 'pricing.html'; return; }
+    var saved = ROY.store.saveExperiment({
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      sim: lesson.sim,
+      params: scene.values()
+    });
+    saveBtn.textContent = saved ? 'Опыт сохранён' : 'Не удалось сохранить';
+    setTimeout(function(){ saveBtn.textContent = 'Сохранить опыт'; }, 2200);
+  });
+
+  /* --------------------------------------------------------------- ссылка */
+
+  function syncShare(){
+    document.getElementById('share-url').value = ROY.shareUrl(lesson.id, scene.values());
+  }
+  syncShare();
+
+  document.getElementById('btn-copy').addEventListener('click', function(){
+    var field = document.getElementById('share-url');
+    field.select();
+    var btn = this;
+    var done = function(ok){
+      btn.textContent = ok ? 'Скопировано' : 'Скопируйте вручную';
+      setTimeout(function(){ btn.textContent = 'Скопировать ссылку'; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(field.value).then(function(){ done(true); }, function(){ done(false); });
+    } else { done(false); }
+  });
+
+  /* ----------------------------------------------- текстовые блоки и сцена */
+
+  var blocksBox = document.getElementById('blocks');
+  var visible = access ? lesson.blocks : lesson.blocks.slice(0, 2);
+
+  visible.forEach(function(b, i){
+    var sec = document.createElement('section');
+    sec.className = 'block';
+    sec.setAttribute('data-i', i);
+    if (b.param !== undefined){
+      sec.setAttribute('data-param', b.param);
+      sec.setAttribute('data-to', b.to);
+    }
+    /* Человеческое название параметра берём из самой симуляции: в данных
+       урока лежит ключ вроде ali, а на кнопке должно быть «выравнивание». */
+    var knob = '';
+    if (b.param !== undefined && def){
+      for (var q = 0; q < def.params.length; q++){
+        if (def.params[q].key === b.param) knob = def.params[q].label;
+      }
+    }
+
+    sec.innerHTML =
+      '<h2>' + b.title + '</h2>' +
+      '<p>' + b.text + '</p>' +
+      (b.param !== undefined
+        ? '<button class="block__try" type="button" data-param="' + b.param +
+          '" data-to="' + b.to + '"><b>Показать</b>' +
+          '<span>' + (b.caption || (knob + ' → ' + b.to)) + '</span></button>'
+        : '');
+    blocksBox.appendChild(sec);
+  });
+
+  /* Показ по нажатию, а не по прокрутке: параметр уезжает к нужному значению
+     плавно, за полторы секунды, и видно, что именно поменялось. */
+  blocksBox.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('.block__try') : null;
+    if (!btn) return;
+    ROY.tweenParam(scene, btn.getAttribute('data-param'),
+                   parseFloat(btn.getAttribute('data-to')), 1500);
+    btn.setAttribute('data-shown', '1');
+    setTimeout(function(){ refreshDesc(); syncShare(); }, 1600);
+  });
+
+  /* Отметка текущего абзаца осталась: она только подсвечивает, где читатель,
+     и ничего не трогает в сцене. */
+  if (window.IntersectionObserver){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        entry.target.classList.toggle('is-active', entry.isIntersecting);
+      });
+    }, { rootMargin: '-42% 0px -42% 0px' });
+
+    Array.prototype.forEach.call(blocksBox.children, function(el){ io.observe(el); });
+  }
+
+  /* ----------------------------------------------------------- пейволл */
+
+  if (!access){
+    var wall = document.createElement('div');
+    wall.className = 'paywall';
+    wall.innerHTML =
+      '<p class="label">Урок доступен по подписке</p>' +
+      '<h2>Дальше — ещё три правила и разбор</h2>' +
+      '<p style="color:var(--muted)">Сцену можно крутить сколько угодно: она открыта. ' +
+      'По подписке открываются остальные объяснения, вопросы и сохранение опытов.</p>' +
+      '<p style="margin:1rem 0 0"><a class="btn btn--cta" href="pricing.html">Оформить подписку</a> ' +
+      '<a class="btn btn--ghost" href="catalog.html">Бесплатные уроки</a></p>';
+    blocksBox.appendChild(wall);
+
+    document.getElementById('quiz-wrap').hidden = true;
+  }
+
+  /* ------------------------------------------------------ где это в природе */
+
+  var natureBox = document.getElementById('nature');
+  (lesson.nature || []).forEach(function(item){
+    if (!ROY.hasFigure(item.fig)) return;
+    var li = document.createElement('li');
+    li.innerHTML =
+      '<figure>' +
+        '<div class="fig">' + ROY.figure(item.fig) + '</div>' +
+        '<figcaption>' + item.caption + '</figcaption>' +
+      '</figure>';
+    natureBox.appendChild(li);
+  });
+
+  /* ------------------------------------------------------------- вопросы */
+
+  if (access){
+    var quizBox = document.getElementById('quiz');
+    (lesson.quiz || []).forEach(function(item, qi){
+      var wrap = document.createElement('div');
+      wrap.className = 'quiz__item';
+
+      var h = document.createElement('p');
+      h.className = 'quiz__q';
+      h.id = 'q' + qi;
+      h.textContent = (qi + 1) + '. ' + item.q;
+
+      var opts = document.createElement('div');
+      opts.className = 'quiz__opts';
+      opts.setAttribute('role', 'group');
+      opts.setAttribute('aria-labelledby', 'q' + qi);
+
+      var answer = document.createElement('p');
+      answer.className = 'quiz__answer';
+      answer.hidden = true;
+      answer.setAttribute('aria-live', 'polite');
+
+      item.options.forEach(function(opt){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = opt.label;
+        b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', function(){
+          Array.prototype.forEach.call(opts.children, function(o){ o.setAttribute('aria-pressed', 'false'); });
+          b.setAttribute('aria-pressed', 'true');
+
+          /* Ответ не «верный» и не «неверный»: сцена просто показывает,
+             что было бы при таком допущении. */
+          Object.keys(opt.params || {}).forEach(function(k){
+            ROY.tweenParam(scene, k, opt.params[k], 1200);
+          });
+          answer.textContent = opt.response;
+          answer.hidden = false;
+          setTimeout(function(){ syncInputs(); refreshDesc(); }, 1300);
+        });
+        opts.appendChild(b);
+      });
+
+      wrap.appendChild(h); wrap.appendChild(opts); wrap.appendChild(answer);
+      quizBox.appendChild(wrap);
+    });
+  }
+
+  /* ------------------------------------------------------- связанные уроки */
+
+  var rel = (window.ROY_RELATED || {})[lesson.id] || [];
+  if (rel.length){
+    var relBox = document.getElementById('related');
+    var shown = 0;
+
+    rel.forEach(function(id){
+      var l = ROY.lesson(id);
+      if (!l || l.status !== 'ready') return;
+      var li = document.createElement('li');
+      li.innerHTML =
+        '<a href="lesson.html?id=' + l.id + '">' +
+          '<b>' + l.title + '</b>' +
+          '<span>' + l.section + ' · ' + l.minutes + ' мин' +
+          (l.free ? ' · бесплатно' : '') + '</span>' +
+        '</a>';
+      relBox.appendChild(li);
+      shown++;
+    });
+
+    if (shown) document.getElementById('related-wrap').hidden = false;
+  }
+
+  /* ---------------------------------------------------------- навигация */
+
+  var nb = ROY.neighbours(lesson.id);
+  var nav = document.getElementById('lesson-nav');
+  nav.innerHTML =
+    (nb.prev ? '<a class="btn btn--ghost btn--small" href="lesson.html?id=' + nb.prev.id + '">← ' + nb.prev.title + '</a>' : '<span></span>') +
+    (nb.next ? '<a class="btn btn--ghost btn--small" href="lesson.html?id=' + nb.next.id + '">' + nb.next.title + ' →</a>' : '<span></span>');
+
+  /* ------------------------------------------------------------- прогресс */
+
+  ROY.store.lastLesson(lesson.id);
+  if (access){
+    /* Урок считается пройденным, когда человек добрался до конца текста,
+       а не когда просто открыл страницу. */
+    if (window.IntersectionObserver){
+      var endObserver = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if (e.isIntersecting){ ROY.store.markDone(lesson.id); endObserver.disconnect(); }
+        });
+      }, { threshold: 0.4 });
+      endObserver.observe(document.getElementById('quiz-wrap'));
+    }
+  }
+
+})();
+</script>
+</body>
+</html>

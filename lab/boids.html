@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лаборатория · стая</title>
+<style>
+  :root{
+    --paper:#FBFAF6; --ink:#16181A; --muted:#6E7278;
+    --line:#B9BCB6; --grid:#E4E2DA; --ultra:#2545E6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden}
+  body{background:var(--paper);color:var(--ink);
+       font:13px/1.45 ui-sans-serif,system-ui,"Segoe UI",sans-serif;cursor:crosshair}
+  /* canvas — замещаемый элемент: inset:0 его НЕ растянет, нужны явные размеры */
+  #scene{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;right:14px;top:14px;width:258px;padding:12px 14px 14px;
+    background:rgba(251,250,246,.92);border:1px solid var(--line);
+    font-family:ui-monospace,"IBM Plex Mono",Consolas,monospace;font-size:11px;cursor:default}
+  .panel h1{margin:0 0 10px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    font-weight:600;color:var(--muted)}
+  .row{margin:0 0 9px}
+  .row label{display:flex;justify-content:space-between;gap:8px;margin-bottom:3px;color:var(--muted)}
+  .row b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;height:16px;margin:0;accent-color:var(--ultra);display:block}
+  .meter{margin-top:11px;padding-top:9px;border-top:1px solid var(--grid);
+    display:flex;justify-content:space-between;color:var(--muted)}
+  .meter b{color:var(--ink)}
+  .hint{position:fixed;left:16px;bottom:14px;color:var(--muted);font-size:11px;
+    font-family:ui-monospace,"IBM Plex Mono",Consolas,monospace;letter-spacing:.03em}
+  .warn{color:var(--ultra)}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div class="panel">
+  <h1>Стая · параметры</h1>
+  <div class="row"><label>дистанция<b id="v-sep">14</b></label>
+    <input id="s-sep" type="range" min="5" max="60" step="1" value="14"></div>
+  <div class="row"><label>выравнивание<b id="v-ali">0.70</b></label>
+    <input id="s-ali" type="range" min="0" max="1" step="0.01" value="0.70"></div>
+  <div class="row"><label>сплочённость<b id="v-coh">0.75</b></label>
+    <input id="s-coh" type="range" min="0" max="1" step="0.01" value="0.75"></div>
+  <div class="row"><label>радиус обзора<b id="v-view">115</b></label>
+    <input id="s-view" type="range" min="10" max="120" step="1" value="115"></div>
+  <div class="row"><label>страх курсора<b id="v-fear">1.50</b></label>
+    <input id="s-fear" type="range" min="0" max="3" step="0.05" value="1.5"></div>
+  <div class="row"><label>количество<b id="v-cnt">600</b></label>
+    <input id="s-cnt" type="range" min="50" max="800" step="10" value="600"></div>
+  <div class="row"><label>след<b id="v-tr">0.055</b></label>
+    <input id="s-tr" type="range" min="0.02" max="0.4" step="0.005" value="0.055"></div>
+  <div class="meter"><span>кадров / шагов</span><b id="frm">—</b></div>
+  <div class="meter" style="border:0;padding-top:2px"><span>fps</span><b id="fps">—</b></div>
+  <div class="meter" style="border:0;padding-top:2px"><span>разброс стаи</span><b id="spread">—</b></div>
+  <div class="meter" style="border:0;padding-top:2px"><span>соседей найдено</span><b id="nb">—</b></div>
+</div>
+
+<div class="hint">курсор — ястреб. <span id="auto"></span></div>
+
+<script>
+(function(){
+  'use strict';
+
+  var cv  = document.getElementById('scene');
+  var ctx = cv.getContext('2d', { alpha: false });
+
+  var W = 0, H = 0, dpr = 1;
+
+  /* ---- параметры ---------------------------------------------------- */
+  var P = { sep:14, ali:0.70, coh:0.75, view:115, fear:1.50, count:600, trail:0.055 };
+
+  var SEP_W    = 1.15;   // вес разделения
+  var WANDER       = 0.022;  // сила блуждания
+  var WANDER_DRIFT = 0.17;   // как быстро бродит угол: медленно — дуги, быстро — дрожь
+  var MAXFORCE = 0.28;   // предел поворота за шаг — ниже, значит плавнее дуги
+  var K        = 7;      // топологические соседи: скворец видит примерно семерых
+  var HOME     = 0.85;   // сила возврата к насесту
+  var HOME_R   = 0;      // радиус насеста, считается от размера холста в resize()
+  var FEAR_R   = 140;    // радиус ястреба
+  var LONELY   = 0.25;   // тяга одиночки к стае, см. комментарий ниже
+
+  /* ---- популяция ---------------------------------------------------- */
+  var boids = [];
+
+  /* Птицы рождаются кучей и смотрят примерно в одну сторону.
+     Если рассыпать их равномерно по холсту, стая не соберётся никогда:
+     у каждой семь соседей на равном удалении, вектор сплочённости взаимно
+     гасится, и получается ровный газ вместо стаи. */
+  var seedA = Math.random() * Math.PI * 2;
+
+  function makeBoid(){
+    var cxr = W * 0.5, cyr = H * 0.5;
+    var R   = Math.min(W, H) * 0.16;
+    var t   = Math.random() * Math.PI * 2;
+    var r   = Math.sqrt(Math.random()) * R;
+    var a   = seedA + (Math.random() - 0.5) * 1.1;
+    var s   = 3.0 + Math.random() * 1.1;        // у каждой птицы свой темп
+    return {
+      x: cxr + Math.cos(t)*r, y: cyr + Math.sin(t)*r,
+      vx: Math.cos(a)*s,      vy: Math.sin(a)*s,
+      max: s, min: s*0.55,
+      wa: Math.random() * Math.PI * 2,          // угол блуждания
+      g: (Math.random()*3)|0                    // толщина штриха
+    };
+  }
+
+  function setCount(n){
+    n = n|0;
+    while (boids.length < n) boids.push(makeBoid());
+    if (boids.length > n) boids.length = n;
+    nextIdx = new Int32Array(boids.length);
+  }
+
+  /* ---- пространственная сетка --------------------------------------- */
+  var cell = 64, cols = 1, rows = 1, heads = null, nextIdx = null;
+
+  function buildGrid(){
+    cell = Math.max(24, P.view);
+    cols = Math.ceil(W / cell) + 1;
+    rows = Math.ceil(H / cell) + 1;
+    heads = new Int32Array(cols * rows);
+    if (!nextIdx || nextIdx.length !== boids.length) nextIdx = new Int32Array(boids.length);
+  }
+
+  /* ---- курсор -------------------------------------------------------- */
+  var mouse = { x:-999, y:-999, on:false };
+
+  addEventListener('mousemove', function(e){ mouse.x=e.clientX; mouse.y=e.clientY; mouse.on=true; });
+  addEventListener('mouseout',  function(){ mouse.on=false; });
+  addEventListener('touchmove', function(e){
+    var t=e.touches[0]; if(!t) return;
+    mouse.x=t.clientX; mouse.y=t.clientY; mouse.on=true;
+  }, {passive:true});
+  addEventListener('touchend', function(){ mouse.on=false; });
+
+  /* ---- шаг физики (фиксированный, 60 Гц) ----------------------------- */
+  var nd = new Float32Array(K), ni = new Int32Array(K);
+  var statNb = 0, statSpread = 0;          // диагностика
+  var statCx = 0, statCy = 0;              // центр массы стаи с прошлого шага
+
+  function step(){
+    var n = boids.length, i, j;
+    var nbSum = 0;
+
+    heads.fill(-1);
+    for (i = 0; i < n; i++){
+      var b = boids[i];
+      var cxi = (b.x / cell) | 0, cyi = (b.y / cell) | 0;
+      if (cxi < 0) cxi = 0; else if (cxi >= cols) cxi = cols - 1;
+      if (cyi < 0) cyi = 0; else if (cyi >= rows) cyi = rows - 1;
+      var ci = cyi * cols + cxi;
+      nextIdx[i] = heads[ci];
+      heads[ci] = i;
+    }
+
+    var view2 = P.view * P.view;
+    var sep2  = P.sep  * P.sep;
+
+    for (i = 0; i < n; i++){
+      var b = boids[i];
+      var bcx = (b.x / cell) | 0, bcy = (b.y / cell) | 0;
+      if (bcx < 0) bcx = 0; else if (bcx >= cols) bcx = cols - 1;
+      if (bcy < 0) bcy = 0; else if (bcy >= rows) bcy = rows - 1;
+
+      var found = 0;
+
+      for (var oy = -1; oy <= 1; oy++){
+        var yy = bcy + oy; if (yy < 0 || yy >= rows) continue;
+        for (var ox = -1; ox <= 1; ox++){
+          var xx = bcx + ox; if (xx < 0 || xx >= cols) continue;
+          for (j = heads[yy*cols + xx]; j !== -1; j = nextIdx[j]){
+            if (j === i) continue;
+            var o = boids[j];
+            var dx = o.x - b.x, dy = o.y - b.y;
+            var d2 = dx*dx + dy*dy;
+            if (d2 > view2) continue;
+
+            /* вставка в список семи ближайших */
+            if (found < K){
+              var p = found++;
+              while (p > 0 && nd[p-1] > d2){ nd[p]=nd[p-1]; ni[p]=ni[p-1]; p--; }
+              nd[p]=d2; ni[p]=j;
+            } else if (d2 < nd[K-1]){
+              var q = K-1;
+              while (q > 0 && nd[q-1] > d2){ nd[q]=nd[q-1]; ni[q]=ni[q-1]; q--; }
+              nd[q]=d2; ni[q]=j;
+            }
+          }
+        }
+      }
+
+      nbSum += found;
+
+      var sx=0, sy=0, ax=0, ay=0, cx=0, cy=0;
+
+      for (var t = 0; t < found; t++){
+        var o2 = boids[ni[t]];
+        var ddx = b.x - o2.x, ddy = b.y - o2.y;
+        var d2b = nd[t];
+        if (d2b < sep2 && d2b > 0.0001){
+          var d = Math.sqrt(d2b);
+          var w = (P.sep - d) / P.sep;
+          sx += (ddx / d) * w; sy += (ddy / d) * w;
+        }
+        ax += o2.vx; ay += o2.vy;
+        cx += o2.x;  cy += o2.y;
+      }
+
+      var fx = 0, fy = 0, m, dvx, dvy, lm;
+      var maxS = b.max;
+
+      if (sx !== 0 || sy !== 0){
+        m = Math.sqrt(sx*sx + sy*sy);
+        dvx = sx/m*maxS - b.vx; dvy = sy/m*maxS - b.vy;
+        lm = Math.sqrt(dvx*dvx + dvy*dvy);
+        if (lm > MAXFORCE){ dvx = dvx/lm*MAXFORCE; dvy = dvy/lm*MAXFORCE; }
+        fx += dvx*SEP_W; fy += dvy*SEP_W;
+      }
+
+      if (found > 0){
+        if (P.ali > 0 && (ax !== 0 || ay !== 0)){
+          m = Math.sqrt(ax*ax + ay*ay);
+          dvx = ax/m*maxS - b.vx; dvy = ay/m*maxS - b.vy;
+          lm = Math.sqrt(dvx*dvx + dvy*dvy);
+          if (lm > MAXFORCE){ dvx = dvx/lm*MAXFORCE; dvy = dvy/lm*MAXFORCE; }
+          fx += dvx*P.ali; fy += dvy*P.ali;
+        }
+        if (P.coh > 0){
+          var gx = cx/found - b.x, gy = cy/found - b.y;
+          if (gx !== 0 || gy !== 0){
+            m = Math.sqrt(gx*gx + gy*gy);
+            dvx = gx/m*maxS - b.vx; dvy = gy/m*maxS - b.vy;
+            lm = Math.sqrt(dvx*dvx + dvy*dvy);
+            if (lm > MAXFORCE){ dvx = dvx/lm*MAXFORCE; dvy = dvy/lm*MAXFORCE; }
+            fx += dvx*P.coh; fy += dvy*P.coh;
+          }
+        }
+      }
+
+      /* Одиночество. Если в радиусе обзора не осталось никого, птица навсегда
+         теряет стаю и уходит к стене — так стая разваливается на куски за
+         несколько тысяч шагов. Реальный скворец видит облако целиком, просто
+         взаимодействует с семью соседями; поэтому потерявшейся птице даём
+         слабую тягу к центру массы. Работает только при found === 0. */
+      if (found === 0 && (statCx !== 0 || statCy !== 0)){
+        var lx = statCx - b.x, ly = statCy - b.y;
+        var lmg = Math.sqrt(lx*lx + ly*ly);
+        if (lmg > 1){
+          dvx = lx/lmg*maxS - b.vx; dvy = ly/lmg*maxS - b.vy;
+          lm = Math.sqrt(dvx*dvx + dvy*dvy);
+          if (lm > MAXFORCE){ dvx = dvx/lm*MAXFORCE; dvy = dvy/lm*MAXFORCE; }
+          fx += dvx*LONELY; fy += dvy*LONELY;
+        }
+      }
+
+      /* ястреб */
+      if (mouse.on && P.fear > 0){
+        var px = b.x - mouse.x, py = b.y - mouse.y;
+        var pd2 = px*px + py*py;
+        if (pd2 < FEAR_R*FEAR_R && pd2 > 0.01){
+          var pd = Math.sqrt(pd2);
+          var pw = (FEAR_R - pd) / FEAR_R;
+          dvx = px/pd*maxS - b.vx; dvy = py/pd*maxS - b.vy;
+          lm = Math.sqrt(dvx*dvx + dvy*dvy);
+          if (lm > MAXFORCE){ dvx = dvx/lm*MAXFORCE; dvy = dvy/lm*MAXFORCE; }
+          var pf = P.fear * pw * 2.6;
+          fx += dvx*pf; fy += dvy*pf;
+        }
+      }
+
+      /* Насест. Прямоугольные стены стаю не разворачивают, а размазывают вдоль
+         края: птицы приходят в угол и слипаются в ком. Круговое удержание
+         работает мягче — за пределами радиуса появляется тяга к центру, и стая
+         заворачивает дугой. Это ещё и правда про скворцов: они кружат над одним
+         местом ночёвки, а не разлетаются по всему небу. */
+      var hx = W*0.5 - b.x, hy = H*0.5 - b.y;
+      var hd = Math.sqrt(hx*hx + hy*hy);
+      if (hd > HOME_R && hd > 0.01){
+        var hw = Math.min((hd - HOME_R) / HOME_R, 1);
+        dvx = hx/hd*maxS - b.vx; dvy = hy/hd*maxS - b.vy;
+        lm = Math.sqrt(dvx*dvx + dvy*dvy);
+        if (lm > MAXFORCE){ dvx = dvx/lm*MAXFORCE; dvy = dvy/lm*MAXFORCE; }
+        fx += dvx*HOME*hw; fy += dvy*HOME*hw;
+      }
+
+      /* Блуждание. Без него стая садится в кристалл: все параллельны, шаг решётки
+         одинаковый, движение угадывается вперёд. Угол каждой птицы медленно
+         бродит сам по себе, и стая всё время перемешивается изнутри. */
+      b.wa += (Math.random() - 0.5) * WANDER_DRIFT;
+      fx += Math.cos(b.wa) * WANDER;
+      fy += Math.sin(b.wa) * WANDER;
+
+      b.vx += fx; b.vy += fy;
+
+      var sp = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+      if (sp > maxS){ b.vx = b.vx/sp*maxS; b.vy = b.vy/sp*maxS; }
+      else if (sp < b.min && sp > 0.0001){ b.vx = b.vx/sp*b.min; b.vy = b.vy/sp*b.min; }
+
+      b.x += b.vx; b.y += b.vy;
+
+      if (b.x < -20) b.x = -20; else if (b.x > W+20) b.x = W+20;
+      if (b.y < -20) b.y = -20; else if (b.y > H+20) b.y = H+20;
+    }
+
+    /* диагностика: сколько соседей находит птица и насколько стая разошлась */
+    statNb = nbSum / Math.max(1, n);
+    var mx = 0, my = 0;
+    for (i = 0; i < n; i++){ mx += boids[i].x; my += boids[i].y; }
+    mx /= Math.max(1, n); my /= Math.max(1, n);
+    statCx = mx; statCy = my;
+    var v = 0;
+    for (i = 0; i < n; i++){
+      var qx = boids[i].x - mx, qy = boids[i].y - my;
+      v += qx*qx + qy*qy;
+    }
+    statSpread = Math.sqrt(v / Math.max(1, n));
+  }
+
+  /* ---- отрисовка ------------------------------------------------------ */
+  var WIDTHS = [0.9, 1.3, 1.8];
+
+  function draw(){
+    ctx.fillStyle = 'rgba(251,250,246,' + P.trail + ')';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'rgba(22,24,26,0.82)';
+    ctx.lineCap = 'round';
+
+    for (var g = 0; g < 3; g++){
+      ctx.lineWidth = WIDTHS[g];
+      ctx.beginPath();
+      for (var i = 0; i < boids.length; i++){
+        var b = boids[i];
+        if (b.g !== g) continue;
+        var sp = Math.sqrt(b.vx*b.vx + b.vy*b.vy) || 1;
+        var len = sp * 3.4 + 1.5;
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(b.x - b.vx/sp*len, b.y - b.vy/sp*len);
+      }
+      ctx.stroke();
+    }
+  }
+
+  /* ---- цикл ----------------------------------------------------------- */
+  var acc = 0, last = 0, DT = 1000/60;
+  var fpsAcc = 0, fpsN = 0, fpsT = 0, autoDropped = false, frmN = 0, stepN = 0;
+  var fpsEl = document.getElementById('fps');
+  var autoEl = document.getElementById('auto');
+
+  function frame(now){
+    requestAnimationFrame(frame);
+    if (document.hidden) { last = now; return; }
+
+    if (last === 0) { last = now; return; }   // первый кадр только калибрует часы
+    var dt = now - last; last = now;
+    if (dt > 100) dt = 100;             // возврат на вкладку не двигает стаю на 30 секунд вперёд
+    else if (dt < 0) dt = 0;            // rAF и performance.now() живут по разным шкалам
+    acc += dt;
+
+    var guard = 0;
+    while (acc >= DT && guard < 3){ step(); stepN++; acc -= DT; guard++; }
+    if (acc > DT * 3) acc = 0;
+
+    draw();
+    frmN++; document.getElementById("frm").textContent = frmN + " / " + stepN;
+
+    /* fps и автоснижение качества */
+    if (dt > 0){ fpsAcc += 1000/dt; fpsN++; }
+    fpsT += dt;
+    if (fpsT >= 500){
+      var avg = fpsAcc / Math.max(1, fpsN);
+      fpsEl.textContent = avg.toFixed(0);
+      document.getElementById('spread').textContent = statSpread.toFixed(0);
+      document.getElementById('nb').textContent = statNb.toFixed(1);
+      if (!autoDropped && avg < 40 && boids.length > 120){
+        setCount(boids.length >> 1);
+        document.getElementById('s-cnt').value = boids.length;
+        document.getElementById('v-cnt').textContent = boids.length;
+        autoDropped = true;
+        autoEl.innerHTML = '<span class="warn">качество снижено автоматически</span>';
+      }
+      fpsAcc = 0; fpsN = 0; fpsT = 0;
+    }
+  }
+
+  /* ---- размер холста --------------------------------------------------- */
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var r = cv.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cv.width  = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#FBFAF6';
+    ctx.fillRect(0, 0, W, H);
+    HOME_R = Math.min(W, H) * 0.40;
+    buildGrid();
+  }
+  addEventListener('resize', resize);
+
+  /* ---- ползунки --------------------------------------------------------- */
+  function bind(id, key, out, fx){
+    var el = document.getElementById(id), lab = document.getElementById(out);
+    el.addEventListener('input', function(){
+      P[key] = parseFloat(el.value);
+      lab.textContent = fx ? fx(P[key]) : P[key];
+      if (key === 'view') buildGrid();
+      if (key === 'count') setCount(P.count);
+    });
+  }
+  var f2 = function(v){ return v.toFixed(2); };
+  bind('s-sep','sep','v-sep');
+  bind('s-ali','ali','v-ali', f2);
+  bind('s-coh','coh','v-coh', f2);
+  bind('s-view','view','v-view');
+  bind('s-fear','fear','v-fear', f2);
+  bind('s-cnt','count','v-cnt');
+  bind('s-tr','trail','v-tr', f2);
+
+  /* ---- старт ------------------------------------------------------------ */
+  resize();
+
+  /* Отладочные параметры в адресе: ?warm=1500&ali=0.7&sep=22&count=500
+     Нужны потому, что headless-браузер с --virtual-time-budget успевает отдать
+     всего несколько кадров rAF: без прогрева на скриншот попадает стартовая
+     расстановка, а не результат работы правил. В боевой сборке этого нет. */
+  var qs = {};
+  location.search.replace(/^\?/, '').split('&').forEach(function(kv){
+    if (!kv) return;
+    var p = kv.split('=');
+    qs[p[0]] = parseFloat(p[1]);
+  });
+  var SUFFIX = { sep:'sep', ali:'ali', coh:'coh', view:'view', fear:'fear', count:'cnt', trail:'tr' };
+  Object.keys(SUFFIX).forEach(function(k){
+    if (!isFinite(qs[k])) return;
+    P[k] = qs[k];
+    var el = document.getElementById('s-' + SUFFIX[k]);
+    var lb = document.getElementById('v-' + SUFFIX[k]);
+    if (el) el.value = P[k];
+    if (lb) lb.textContent = P[k];
+  });
+
+  if (qs.bare === 0 || location.search.indexOf("bare") > -1){ document.querySelector(".panel").style.display = "none"; document.querySelector(".hint").style.display = "none"; }
+  if (isFinite(qs.lonely)) LONELY = qs.lonely;
+  if (isFinite(qs.wander)) WANDER = qs.wander;
+  if (isFinite(qs.sepw))   SEP_W  = qs.sepw;
+
+  setCount(P.count);
+  buildGrid();
+
+  if (isFinite(qs.warm) && qs.warm > 0){
+    var warm = Math.min(qs.warm, 20000);
+    for (var wi = 0; wi < warm; wi++){
+      step();
+      if (wi > warm - 40) draw();      // последние кадры рисуем, чтобы набрались следы
+    }
+    document.getElementById('frm').textContent = 'прогрев ' + warm;
+    document.getElementById('spread').textContent = statSpread.toFixed(0);
+    document.getElementById('nb').textContent = statNb.toFixed(1);
+  }
+
+  last = 0;
+  requestAnimationFrame(frame);
+
+  window.__boids = { P: P, get boids(){ return boids; }, step: step };  // для проверок
+})();
+</script>
+</body>
+</html>

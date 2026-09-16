@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Вступление и текст первого экрана · РОЙ</title>
+<style>
+  body{margin:0;background:#FBFAF6;color:#16181A;
+       font:13px/1.5 ui-monospace,"IBM Plex Mono",Consolas,monospace;padding:14px}
+  h1{font:600 14px/1.3 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px}
+  #sum{margin:12px 0;padding:8px 10px;border:1px solid #B9BCB6}
+  table{border-collapse:collapse;font-size:12px;width:760px}
+  th,td{text-align:left;padding:3px 8px;border-bottom:1px solid #E4E2DA}
+  th{color:#6E7278;font-weight:500}
+  .bad{color:#A65543;font-weight:600}
+  iframe{width:1100px;height:800px;border:0;position:absolute;left:-4000px;top:0}
+</style>
+</head>
+<body>
+<h1>Вступление и текст первого экрана</h1>
+<div id="sum">идёт проверка…</div>
+<table id="out"><thead><tr><th>шаг</th><th>что делаем</th><th>вышло</th><th>ждём</th></tr></thead><tbody></tbody></table>
+<iframe id="f" src="../index.html?motion=on"></iframe>
+
+<script>
+/* Порядок теперь такой: страница открывается сборкой букв, текст спрятан,
+   потом текст выходит — от прокрутки или сам, что раньше. Проверяем именно
+   этот договор, а не красоту: сама анимация в headless не проигрывается,
+   кадров почти нет.
+
+   Отдельно проверяем, что появление текста не привязано к последнему кадру
+   анимации: в фоновой вкладке кадров не будет вовсе, и текст обязан выйти
+   всё равно — по таймеру. */
+var f = document.getElementById('f');
+var tbody = document.querySelector('#out tbody');
+var fails = 0;
+
+function row(n, what, got, want, bad){
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td>' + n + '</td><td>' + what + '</td>' +
+    '<td' + (bad ? ' class="bad"' : '') + '>' + got + '</td><td>' + want + '</td>';
+  tbody.appendChild(tr);
+  if (bad) fails++;
+}
+
+function declared(d, selector, prop){
+  var sheets = d.styleSheets;
+  for (var i = 0; i < sheets.length; i++){
+    var rules;
+    try { rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++){
+      var sel = rules[j].selectorText;
+      if (sel && sel.indexOf(selector) !== -1){
+        var v = rules[j].style.getPropertyValue(prop);
+        if (v) return v;
+      }
+    }
+  }
+  return '';
+}
+
+f.addEventListener('load', function(){
+  var w = f.contentWindow, d = f.contentDocument;
+  var copy = d.getElementById('hero-copy');
+  var rules = d.getElementById('hero-rules');
+  var wrap = d.getElementById('hero-wrap');
+
+  if (!copy || !rules || !wrap){
+    document.getElementById('sum').textContent = 'на странице нет первого экрана';
+    document.title = 'HERO СБОЙ';
+    return;
+  }
+
+  function hidden(){ return copy.classList.contains('is-away'); }
+
+  var box = wrap.getBoundingClientRect();
+  var total = box.height - w.innerHeight;
+  var top0 = box.top + w.pageYOffset;
+  function go(frac){
+    w.scrollTo({ top: Math.round(top0 + total * frac), behavior: 'instant' });
+    w.dispatchEvent(new w.Event('scroll'));
+  }
+
+  /* Первый кадр: буквы собираются, текста нет. */
+  row(1, 'сразу после загрузки', hidden() ? 'текст спрятан' : 'текст виден',
+      'текст спрятан', !hidden());
+
+  var cs = w.getComputedStyle(copy);
+  row(2, 'спрятанный текст ловит курсор?', cs.pointerEvents, 'none',
+      cs.pointerEvents !== 'none');
+  row(3, 'спрятанный текст в обходе Tab?',
+      declared(d, '.hero-copy.is-away', 'visibility') || '—', 'hidden',
+      declared(d, '.hero-copy.is-away', 'visibility') !== 'hidden');
+
+  /* Ждём дольше, чем длится вступление: текст обязан выйти сам. */
+  setTimeout(function(){
+    row(4, 'через 4 с без единой прокрутки',
+        hidden() ? 'текст спрятан' : 'текст виден', 'текст виден', hidden());
+
+    /* Прокрутка вниз — текст тоже виден, и надпись рассыпается. */
+    go(0.25);
+    setTimeout(function(){
+      row(5, 'прокрутили на четверть первого экрана',
+          hidden() ? 'текст спрятан' : 'текст виден', 'текст виден', hidden());
+
+      /* Вернулись наверх — показанный текст прятаться обратно не должен. */
+      go(-0.5);
+      setTimeout(function(){
+        row(6, 'вернулись к самому верху',
+            hidden() ? 'текст спрятан' : 'текст виден',
+            'текст виден (не мигает)', hidden());
+
+        var t = w.getComputedStyle(copy).transitionDuration;
+        row(7, 'длительность перехода', t, 'не 0s', !/0\.2|0\.3|[1-9]s/.test(t));
+
+        document.getElementById('sum').textContent =
+          fails ? 'ОШИБОК: ' + fails : 'ПЕРВЫЙ ЭКРАН В ПОРЯДКЕ: 7 проверок';
+        document.title = fails ? 'HERO ПРОБЛЕМ ' + fails : 'HERO OK';
+      }, 900);
+    }, 900);
+  }, 4000);
+});
+</script>
+</body>
+</html>

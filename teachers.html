@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Учителям — РОЙ</title>
+<meta name="description" content="Уроки, разложенные по темам школьной программы. Что показать за пять минут перед звонком, а что растянуть на целый урок. Заявка на лицензию для класса.">
+<link rel="canonical" href="https://oum1d.github.io/roy/teachers.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Учителям — РОЙ">
+<meta property="og:description" content="Пять минут перед звонком, проектор и одна ссылка.">
+<meta property="og:image" content="https://oum1d.github.io/roy/assets/img/og-cover.png">
+<meta name="theme-color" content="#FBFAF6">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/roy.css">
+<style>
+  /* Страница намеренно спокойная: ни одной симуляции, ни одного эффекта.
+     Учитель приходит сюда за расписанием и счётом, а не за впечатлением. */
+  .topic{border-top:1px solid var(--grid);padding-block:1.1rem}
+  .topic h3{font-size:1.1rem;margin-bottom:.15em}
+  .topic p{color:var(--muted);font-size:.9375rem;margin:0}
+  .topic__lessons{margin:.6rem 0 0;padding:0;list-style:none;
+    display:flex;flex-wrap:wrap;gap:.4rem}
+  .topic__lessons a{
+    font-size:.8125rem;border:1px solid var(--line);padding:.3rem .6rem;
+    text-decoration:none;color:var(--ink);border-radius:var(--radius);
+  }
+  .topic__lessons a:hover{border-color:var(--ink)}
+  .topic__lessons span{
+    font-size:.8125rem;border:1px dashed var(--line);padding:.3rem .6rem;
+    color:var(--muted);border-radius:var(--radius);
+  }
+
+  .two{display:grid;gap:var(--gap);grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .form-box{border:1px solid var(--ink);padding:clamp(20px,3vw,32px)}
+  .materials li{margin-bottom:.55rem}
+</style>
+</head>
+<body class="paper-grid--soft">
+
+<a class="skip" href="#main">Перейти к содержанию</a>
+
+<header class="site-head">
+  <div class="wrap site-head__in">
+    <a class="brand" href="index.html">РОЙ <span>явления в движении</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav">Меню</button>
+    <nav class="site-nav" id="nav" aria-label="Основная навигация">
+      <a href="catalog.html">Уроки</a>
+      <a href="teachers.html" aria-current="page">Учителям</a>
+      <a href="pricing.html">Тарифы</a>
+      <a href="account.html">Кабинет</a>
+      <a class="btn btn--small btn--cta" href="#license">Лицензия для класса</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <div style="padding-block:var(--gap) 0">
+    <p class="label">Учителям</p>
+    <h1>Пять минут перед звонком, проектор и одна ссылка</h1>
+    <p class="lead">
+      Здесь намеренно ничего не движется. Уроки разложены по темам программы, рядом
+      написано, сколько времени займёт показ и что спросить у класса.
+    </p>
+  </div>
+
+  <section aria-labelledby="topics-h">
+    <p class="label">По темам программы</p>
+    <h2 id="topics-h">Куда это встраивается</h2>
+    <p style="color:var(--muted);max-width:var(--measure)">
+      Все двадцать четыре урока готовы. Девять открыты без подписки — они помечены звёздочкой.
+    </p>
+
+    <div class="topic">
+      <h3>Биология · поведение животных и сообщества</h3>
+      <p>Коллективное поведение без вожака, стайность как защита, самоорганизация колонии, пороговый переход.</p>
+      <ul class="topic__lessons">
+        <li><a href="lesson.html?id=starlings">Скворцы ★</a></li>
+        <li><a href="lesson.html?id=fish">Решение стаи рыб ★</a></li>
+        <li><a href="lesson.html?id=ants">Муравьиный след</a></li>
+        <li><a href="lesson.html?id=fireflies">Светлячки</a></li>
+        <li><a href="lesson.html?id=bees">Соты</a></li>
+        <li><a href="lesson.html?id=locust">Марш саранчи</a></li>
+      </ul>
+    </div>
+
+    <div class="topic">
+      <h3>Биология · рост и форма</h3>
+      <p>Как из простого правила получается сложная форма живого организма.</p>
+      <ul class="topic__lessons">
+        <li><a href="lesson.html?id=fern">Папоротник ★</a></li>
+        <li><a href="lesson.html?id=leopard">Пятна леопарда</a></li>
+        <li><a href="lesson.html?id=shell">Спираль раковины ★</a></li>
+        <li><a href="lesson.html?id=canopy">Крона дерева</a></li>
+      </ul>
+    </div>
+
+    <div class="topic">
+      <h3>Физика · механические волны</h3>
+      <p>Сложение волн, интерференция, узлы и пучности. Основа для опыта с двумя щелями.</p>
+      <ul class="topic__lessons">
+        <li><a href="lesson.html?id=waves">Интерференция ★</a></li>
+      </ul>
+    </div>
+
+    <div class="topic">
+      <h3>Физика · движение в среде и в потоке</h3>
+      <p>Подъёмная сила, установившаяся скорость, равновесие сил, перенос вещества.</p>
+      <ul class="topic__lessons">
+        <li><a href="lesson.html?id=samara">Крылатка клёна</a></li>
+        <li><a href="lesson.html?id=river">Меандры реки</a></li>
+        <li><a href="lesson.html?id=rivulet">Ручеёк по стеклу ★</a></li>
+      </ul>
+    </div>
+
+    <div class="topic">
+      <h3>Физика · вещество и его состояния</h3>
+      <p>Кристаллическая решётка, сыпучие среды, конвекция, поверхностное натяжение.</p>
+      <ul class="topic__lessons">
+        <li><a href="lesson.html?id=snowflake">Снежинка</a></li>
+        <li><a href="lesson.html?id=sand">Песок ★</a></li>
+        <li><a href="lesson.html?id=clouds">Дно облака ★</a></li>
+        <li><a href="lesson.html?id=flame">Пламя свечи</a></li>
+        <li><a href="lesson.html?id=dunes">Дюна</a></li>
+        <li><a href="lesson.html?id=soapfilm">Мыльная плёнка</a></li>
+      </ul>
+    </div>
+
+    <div class="topic">
+      <h3>Физика · поля и разряд</h3>
+      <p>Электрическое поле между проводниками, пробой, рост по градиенту.</p>
+      <ul class="topic__lessons">
+        <li><a href="lesson.html?id=lightning">Молния</a></li>
+      </ul>
+    </div>
+
+    <div class="topic">
+      <h3>Математика и информатика</h3>
+      <p>Клеточные автоматы, пороговые переходы, задача о кратчайшей сети, алгоритмы роя.</p>
+      <ul class="topic__lessons">
+        <li><a href="lesson.html?id=traffic">Пробка из ничего ★</a></li>
+        <li><a href="lesson.html?id=ants">Муравьиный алгоритм</a></li>
+        <li><a href="lesson.html?id=soapfilm">Задача Штейнера</a></li>
+        <li><a href="lesson.html?id=swarm">Строй дронов</a></li>
+      </ul>
+    </div>
+
+    <div class="topic">
+      <h3>География и геология</h3>
+      <p>Рельеф, выветривание, перенос материала, форма русла.</p>
+      <ul class="topic__lessons">
+        <li><a href="lesson.html?id=cracks">Трещины в глине</a></li>
+        <li><a href="lesson.html?id=dunes">Движение дюны</a></li>
+        <li><a href="lesson.html?id=river">Излучины и старицы</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="time-h">
+    <p class="label">Сколько это занимает</p>
+    <h2 id="time-h">Пять минут или целый урок</h2>
+    <div class="two">
+      <div>
+        <h3>За пять минут перед звонком</h3>
+        <p>Откройте урок, покажите сцену, дайте одному ученику покрутить один ползунок. Вопрос классу — и звонок.</p>
+        <ul class="materials">
+          <li>Скворцы: покрутить «сплочённость» до нуля и обратно.</li>
+          <li>Леопард: нажать «лабиринт», потом «пятна».</li>
+          <li>Клён: увеличить массу и посмотреть на спираль.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>На целый урок</h3>
+        <p>Пройдите текст по абзацам: сцена перестраивается сама на каждом правиле. Затем три вопроса — они не оцениваются и годятся для обсуждения.</p>
+        <ul class="materials">
+          <li>Разбор по одному правилу за раз.</li>
+          <li>Кнопка «Сломать» как отдельное задание.</li>
+          <li>Ученики скидывают ссылки на свои опыты.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="mat-h">
+    <p class="label">Материалы</p>
+    <h2 id="mat-h">Рабочие листы и вопросы</h2>
+    <p style="color:var(--muted);max-width:var(--measure)">
+      Материалы готовятся вместе с методистом. Ниже перечислено, что войдёт в комплект
+      школьной лицензии.
+    </p>
+    <ul class="materials" style="color:var(--muted)">
+      <li><b style="color:var(--ink)">Рабочий лист к любому уроку</b> — собирается прямо из урока
+        и печатается из браузера. Есть версия для учеников и версия с разбором для вас.</li>
+      <li><b style="color:var(--ink)">Вопросы для обсуждения</b> — по три на урок, без баллов и
+        без «правильного ответа»: каждый вариант показывает, что стало бы со сценой.</li>
+      <li><b style="color:var(--ink)">Раскладка по темам программы</b> — список выше на этой странице.</li>
+      <li><span class="tag-demo">готовится</span> Таблица соответствия кодам программы, XLSX.</li>
+    </ul>
+
+    <div style="border:1px solid var(--grid);padding:1rem 1.1rem;margin-top:1rem">
+      <p class="label" style="margin:0 0 .6rem">Рабочие листы</p>
+      <ul class="topic__lessons" id="sheet-links"></ul>
+    </div>
+
+    <p class="note" style="margin-top:1rem">
+      Листы не лежат отдельными файлами: они собираются из самого урока, поэтому не
+      могут с ним разойтись. Печать — обычная, через Ctrl+P.
+    </p>
+  </section>
+
+  <!-- ------------------------------------------------ заявка -->
+  <section id="license" aria-labelledby="lic-h">
+    <div class="form-box">
+      <p class="label">Заявка</p>
+      <h2 id="lic-h">Лицензия для класса</h2>
+      <p style="color:var(--muted);max-width:var(--measure)">
+        Напишите, сколько классов и какие предметы — пришлём условия и счёт.
+      </p>
+
+      <form id="license-form" novalidate style="max-width:520px;margin-top:1.4rem">
+        <div class="field">
+          <label for="school">Школа <span class="req">*</span></label>
+          <input id="school" name="school" type="text" autocomplete="organization"
+                 data-rule="required|min:2" aria-describedby="school-error">
+          <span class="field__error" id="school-error" role="alert"></span>
+        </div>
+
+        <div class="field">
+          <label for="person">Как к вам обращаться <span class="req">*</span></label>
+          <input id="person" name="person" type="text" autocomplete="name"
+                 data-rule="required|min:2" aria-describedby="person-error">
+          <span class="field__error" id="person-error" role="alert"></span>
+        </div>
+
+        <div class="field">
+          <label for="email">Почта <span class="req">*</span></label>
+          <input id="email" name="email" type="email" autocomplete="email"
+                 data-rule="required|email" aria-describedby="email-note email-error">
+          <span class="field__note" id="email-note">Ответим на неё, другие письма присылать не будем.</span>
+          <span class="field__error" id="email-error" role="alert"></span>
+        </div>
+
+        <div class="field">
+          <label for="classes">Сколько классов</label>
+          <input id="classes" name="classes" type="text" inputmode="numeric"
+                 data-rule="number" aria-describedby="classes-error">
+          <span class="field__error" id="classes-error" role="alert"></span>
+        </div>
+
+        <div class="field">
+          <label for="comment">Что важно знать</label>
+          <textarea id="comment" name="comment" rows="4"></textarea>
+        </div>
+
+        <div class="field">
+          <label style="display:flex;gap:.6rem;align-items:flex-start;font-weight:400">
+            <input type="checkbox" id="consent" name="consent" data-rule="required"
+                   style="width:auto;margin-top:.25rem" aria-describedby="consent-error">
+            <span style="font-size:.875rem;color:var(--muted)">
+              Согласен на обработку указанных данных для ответа на заявку.
+              <a href="privacy.html">Как мы с ними обращаемся</a>.
+            </span>
+          </label>
+          <span class="field__error" id="consent-error" role="alert"></span>
+        </div>
+
+        <button class="btn" type="submit">Отправить заявку</button>
+        <p class="form-status" id="license-status" role="status"></p>
+      </form>
+
+      <p class="note" style="margin-top:1.4rem">
+        Форма проверяет поля прямо в браузере, но никуда не отправляется: сервера в этой
+        сборке нет. Проверка на стороне сервера обязательна и должна повторять все правила
+        заново — клиентскую можно обойти. Куда подключать обработчик, написано в README.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <span class="mono" style="font-size:.75rem">© <span id="year">2026</span> РОЙ</span>
+    <span><a href="catalog.html">Каталог</a> · <a href="pricing.html">Тарифы</a> · <a href="privacy.html">Политика конфиденциальности</a></span>
+  </div>
+</footer>
+
+<script src="assets/js/engine.js"></script>
+<script src="data/lessons.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+  ROY.initForm(document.getElementById("license-form"));
+
+  /* Ссылки на рабочие листы строим из данных: список уроков и так меняется
+     в одном месте, дублировать его в разметке незачем. */
+  (function(){
+    var box = document.getElementById("sheet-links");
+    if (!box) return;
+    ROY.lessons().forEach(function(l){
+      if (l.status !== "ready") return;
+      var li = document.createElement("li");
+      li.innerHTML = '<a href="worksheet.html?id=' + l.id + '">' + l.title + '</a>';
+      box.appendChild(li);
+    });
+  })();
+</script>
+</body>
+</html>

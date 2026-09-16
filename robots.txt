@@ -1,0 +1,10 @@
+# РОЙ
+# Демо-публикация на GitHub Pages.
+
+User-agent: *
+Allow: /roy/
+
+# Кабинет — личная страница, в поиске ей делать нечего.
+Disallow: /roy/account.html
+
+Sitemap: https://oum1d.github.io/roy/sitemap.xml

@@ -1,0 +1,482 @@
+/* РОЙ · оформление
+   ------------------------------------------------------------------
+   Лабораторная тетрадь: миллиметровка, поля, подписи моноширинным с ведущими
+   нулями. Тёмной темы нет намеренно — тетрадь бывает только бумажной.
+*/
+
+/* ------------------------------------------------------------- переменные */
+
+:root{
+  --paper:#FBFAF6;
+  --paper-2:#F5F3ED;
+  --grid:#E4E2DA;
+  --line:#B9BCB6;
+  --ink:#16181A;
+  --muted:#6E7278;
+
+  --moss:#4A6B4F;
+  --ochre:#C4903C;
+  --clay:#A65543;
+  --ultra:#2545E6;
+
+  /* Oswald — узкий гротеск для заголовков: так подписывают чертежи, таблички
+     в музее и ящики гербария. Держит крупный кегль плотно и остаётся
+     читаемым на плохом мониторе, потому что толщина везде одна.
+     Golos Text — обычной ширины, для чтения по-русски: контраст между ним и
+     узким Oswald и держит всю иерархию, без второго кегля и второго цвета.
+     IBM Plex Mono — цифры и подписи к осям.
+     Кириллица у всех трёх проверена запросом к Google Fonts, а не на глаз. */
+  --display:"Oswald","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --sans:"Golos Text","Onest",ui-sans-serif,system-ui,"Segoe UI",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+
+  --gap:clamp(16px,2.5vw,28px);
+  --measure:68ch;
+  --radius:2px;
+
+  --shadow:0 1px 0 rgba(22,24,26,.04), 0 8px 24px -18px rgba(22,24,26,.4);
+
+  /* Высота липкой шапки. Первый экран считает свою высоту от неё:
+     иначе блок в 100vh уезжает под нижний край ровно на высоту шапки. */
+  --head-h:60px;
+}
+
+/* ------------------------------------------------------------------ основа */
+
+*,*::before,*::after{box-sizing:border-box}
+
+/* Браузерное правило [hidden]{display:none} слабее любого авторского display,
+   поэтому .btn с display:inline-flex молча его перебивает и скрытая кнопка
+   остаётся видимой. Возвращаем ожидаемое поведение принудительно. */
+[hidden]{display:none !important}
+
+html{
+  -webkit-text-size-adjust:100%;
+  scroll-behavior:smooth;
+}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+  }
+}
+
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:calc(1rem * var(--font-scale, 1));
+  line-height:1.6;
+  font-feature-settings:"liga" 1,"kern" 1;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* Миллиметровка. Два слоя: тонкая клетка в 5 мм и жирная в 25 мм.
+   Держим её очень бледной — это подложка, а не узор. */
+.paper-grid{
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size:100px 100px,100px 100px,20px 20px,20px 20px;
+  background-position:-1px -1px;
+  opacity:1;
+}
+.paper-grid--soft{
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size:20px 20px,20px 20px;
+}
+
+img{max-width:100%;height:auto;display:block}
+
+/* --------------------------------------------------------------- типографика */
+
+h1,h2,h3,h4{
+  margin:0 0 .5em;
+  text-wrap:balance;
+}
+
+/* Крупное — узким гротеском. Буквы у него и так тесные, поэтому никакого
+   отрицательного межбуквенного: строка иначе слипается. Интерлиньяж плотнее
+   обычного — у Oswald короткие выносные, и на 1.15 между строк зияет. */
+h1,h2{
+  font-family:var(--display);font-weight:500;
+  line-height:1.06;letter-spacing:0;
+}
+h1{font-size:clamp(2.05rem,5.4vw,4.05rem)}
+h2{font-size:clamp(1.55rem,3.1vw,2.5rem)}
+
+/* Мелкое — обычной ширины. Контраст «узкое/нормальное» и есть иерархия. */
+h3,h4{font-family:var(--sans);font-weight:600;line-height:1.25;letter-spacing:0}
+h3{font-size:clamp(1.1rem,1.7vw,1.4rem)}
+
+p{margin:0 0 1em;max-width:var(--measure)}
+.lead{font-size:clamp(1.05rem,1.6vw,1.3rem);color:var(--muted);line-height:1.5}
+
+a{color:var(--ultra);text-decoration-thickness:1px;text-underline-offset:.18em}
+a:hover{text-decoration-thickness:2px}
+
+.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* Подпись мелким моноширинным — сквозной приём всего сайта. */
+.label{
+  font-family:var(--mono);
+  font-size:.688rem;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+
+.rule{border:0;border-top:1px solid var(--line);margin:0}
+
+/* ------------------------------------------------------------------ фокус */
+
+:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{
+  outline:2px solid var(--ultra);
+  outline-offset:2px;
+  border-radius:var(--radius);
+}
+
+.skip{
+  position:absolute;left:8px;top:-48px;z-index:100;
+  background:var(--paper);border:1px solid var(--ink);
+  padding:10px 14px;font-family:var(--mono);font-size:.75rem;
+  transition:top .15s;
+}
+.skip:focus{top:8px}
+
+.visually-hidden{
+  position:absolute!important;width:1px;height:1px;overflow:hidden;
+  clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;
+}
+
+/* ----------------------------------------------------------------- раскладка */
+
+.wrap{
+  width:min(1240px,100% - var(--gap)*2);
+  margin-inline:auto;
+}
+.wrap--narrow{width:min(820px,100% - var(--gap)*2)}
+
+.stack>*+*{margin-top:var(--gap)}
+
+section{padding-block:clamp(48px,7vw,96px)}
+
+/* --------------------------------------------------------------------- шапка */
+
+.site-head{
+  position:sticky;top:0;z-index:40;
+  background:rgba(251,250,246,.92);
+  backdrop-filter:saturate(140%) blur(6px);
+  border-bottom:1px solid var(--grid);
+}
+.site-head__in{
+  display:flex;align-items:center;gap:var(--gap);
+  min-height:60px;
+}
+.brand{
+  display:flex;align-items:baseline;gap:1.5rem;
+  font-family:var(--display);font-size:2rem;font-weight:600;line-height:1.2;
+  color:var(--ink);text-decoration:none;letter-spacing:.045em;
+}
+/* Приписка отодвинута от логотипа и держится на его базовой линии: рядом
+   вплотную она читалась как часть слова. */
+.brand span{font-family:var(--mono);font-size:.6875rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);white-space:nowrap}
+
+/* Узкому экрану такой разбег не по карману: рядом стоит кнопка меню. */
+@media (max-width:600px){
+  .brand{font-size:1.7rem;gap:.7rem}
+  .brand span{font-size:.5625rem;letter-spacing:.12em}
+}
+@media (max-width:420px){
+  .brand span{display:none}
+}
+
+.site-nav{margin-left:auto;display:flex;align-items:center;gap:1.15rem;flex-wrap:wrap}
+
+/* Пункты меню — не кнопки в рамочках, а подписи с чертой. Черта вырастает
+   от левого края, как будто её проводят по линейке, и у текущей страницы
+   она уже проведена. Рамка вокруг каждого пункта спорила с миллиметровкой:
+   на клетчатом фоне и так хватает прямоугольников. */
+.site-nav a:not(.btn){
+  position:relative;
+  color:var(--ink);text-decoration:none;
+  padding:.5rem 0;font-size:.9rem;font-weight:500;
+}
+.site-nav a:not(.btn)::after{
+  content:"";position:absolute;left:0;right:0;bottom:.22rem;height:2px;
+  background:var(--ink);
+  transform:scaleX(0);transform-origin:left center;
+  transition:transform .18s ease;
+}
+.site-nav a:not(.btn):hover::after,
+.site-nav a:not(.btn):focus-visible::after,
+.site-nav a:not(.btn)[aria-current="page"]::after{transform:scaleX(1)}
+.site-nav a:not(.btn)[aria-current="page"]{font-weight:600}
+
+/* Кнопка стоит после пунктов и не должна к ним прилипать. */
+.site-nav .btn{margin-left:.5rem}
+
+.nav-toggle{display:none}
+
+@media (max-width:860px){
+  .nav-toggle{
+    display:inline-flex;align-items:center;gap:.4rem;margin-left:auto;
+    background:none;border:1px solid var(--line);color:var(--ink);
+    font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;
+    text-transform:uppercase;padding:.5rem .7rem;cursor:pointer;border-radius:var(--radius);
+  }
+  .site-nav{
+    display:none;order:3;width:100%;flex-direction:column;align-items:stretch;
+    padding-bottom:.75rem;gap:0;
+  }
+  .site-nav.is-open{display:flex}
+  /* В столбик пункты уже разделены линиями — растущая черта здесь лишняя. */
+  .site-nav a:not(.btn){padding:.7rem .2rem;border-bottom:1px solid var(--grid)}
+  .site-nav a:not(.btn)::after{display:none}
+  .site-nav .btn{margin:.7rem 0 0}
+  .site-head__in{flex-wrap:wrap}
+}
+
+/* -------------------------------------------------------------------- кнопки */
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  font-family:var(--sans);font-size:.9375rem;font-weight:500;line-height:1;
+  padding:.85rem 1.35rem;border-radius:var(--radius);
+  border:1px solid var(--ink);background:var(--ink);color:var(--paper);
+  text-decoration:none;cursor:pointer;
+  transition:transform .12s ease, background-color .12s ease, color .12s ease;
+}
+.btn:hover{background:#000;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+
+.btn--ghost{background:none;color:var(--ink);border-color:var(--line)}
+.btn--ghost:hover{background:none;border-color:var(--ink)}
+
+.btn--small{padding:.55rem .85rem;font-size:.8125rem}
+
+/* Главное действие. Была ультрамариновая — клиент попросил чёрную со
+   светлым текстом. Стоит после --small, иначе тот перебил бы отступы.
+   На наведение чёрное остаётся чёрным, а внутри проступает тонкий
+   светлый кант: заметно, но текст не темнеет ни на секунду. */
+.btn--cta{
+  background:var(--ink);border-color:var(--ink);color:var(--paper);
+  padding-inline:1.45rem;font-weight:500;
+  transition:transform .12s ease, box-shadow .14s ease;
+}
+.btn--cta:hover,.btn--cta:focus-visible{
+  background:var(--ink);color:var(--paper);border-color:var(--ink);
+  box-shadow:inset 0 0 0 1px rgba(251,250,246,.42);
+}
+
+.btn[disabled],.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+
+/* ------------------------------------------------------------------- ползунки */
+
+.control{margin-bottom:1.1rem}
+.control__top{display:flex;justify-content:space-between;align-items:baseline;gap:1rem}
+.control__name{font-size:.875rem;font-weight:500}
+.control__val{font-family:var(--mono);font-size:.8125rem;font-variant-numeric:tabular-nums}
+.control__hint{display:block;color:var(--muted);font-size:.75rem;margin:.1rem 0 .35rem;max-width:42ch}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:22px;background:transparent;margin:0;cursor:pointer;
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:2px;background:var(--line);
+}
+input[type=range]::-moz-range-track{height:2px;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:16px;height:16px;margin-top:-7px;border-radius:50%;
+  background:var(--paper);border:2px solid var(--ultra);
+}
+input[type=range]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;
+  background:var(--paper);border:2px solid var(--ultra);
+}
+
+/* Засечки на шкале — как на измерительном приборе. */
+.control__scale{
+  display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:.625rem;color:var(--muted);
+  margin-top:-.15rem;
+}
+
+/* ---------------------------------------------------------------------- сцена */
+
+.scene{
+  position:relative;
+  background:var(--paper);
+  border:1px solid var(--line);
+  overflow:hidden;
+}
+.scene canvas{display:block;width:100%;height:100%}
+
+.scene__overlay{
+  position:absolute;inset:auto 0 0 0;padding:.6rem .8rem;
+  display:flex;gap:.5rem;align-items:center;justify-content:space-between;
+  font-family:var(--mono);font-size:.6875rem;color:var(--muted);
+  background:linear-gradient(to top,rgba(251,250,246,.95),rgba(251,250,246,0));
+  pointer-events:none;
+}
+
+.scene__start{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(251,250,246,.72);
+}
+
+/* ---------------------------------------------------------------------- карточки */
+
+.cards{
+  display:grid;gap:var(--gap);
+  grid-template-columns:repeat(auto-fill,minmax(258px,1fr));
+  list-style:none;padding:0;margin:0;
+}
+/* Карточки в ряду должны быть одной высоты, даже если у одной подпись
+   в две строки, а у другой — в четыре. */
+.cards>li{display:flex}
+
+.card{
+  flex:1;
+  display:flex;flex-direction:column;
+  background:var(--paper);
+  border:1px solid var(--grid);
+  text-decoration:none;color:inherit;
+  transition:border-color .14s ease, transform .14s ease;
+}
+.card:hover{border-color:var(--line);transform:translateY(-2px)}
+.card:focus-within{border-color:var(--ultra)}
+
+.card__thumb{
+  position:relative;aspect-ratio:16/10;background:var(--paper-2);
+  border-bottom:1px solid var(--grid);overflow:hidden;
+}
+.card__thumb canvas{display:block;width:100%;height:100%}
+
+.card__body{padding:.9rem 1rem 1.1rem;display:flex;flex-direction:column;gap:.35rem;flex:1}
+.card__title{font-family:var(--sans);font-weight:600;font-size:1.02rem;line-height:1.3;margin:0}
+.card__meta{
+  margin-top:auto;display:flex;gap:.75rem;flex-wrap:wrap;
+  font-family:var(--mono);font-size:.6875rem;color:var(--muted);
+}
+
+.badge{
+  display:inline-flex;align-items:center;gap:.3rem;
+  font-family:var(--mono);font-size:.625rem;letter-spacing:.09em;text-transform:uppercase;
+  padding:.2rem .45rem;border:1px solid var(--line);color:var(--muted);
+}
+.badge--free{border-color:var(--moss);color:var(--moss)}
+.badge--lock{border-color:var(--ochre);color:var(--ochre)}
+.badge--done{border-color:var(--ultra);color:var(--ultra)}
+.badge--soon{border-color:var(--line);color:var(--muted)}
+
+/* ------------------------------------------------------------------- фильтры */
+
+.filters{
+  display:flex;flex-wrap:wrap;gap:1.25rem;
+  padding-block:1rem;border-block:1px solid var(--grid);
+}
+.filter__legend{
+  font-family:var(--mono);font-size:.625rem;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;
+}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem;list-style:none;margin:0;padding:0}
+.chip{
+  font-family:var(--sans);font-size:.8125rem;
+  padding:.35rem .7rem;border:1px solid var(--line);background:none;
+  color:var(--ink);cursor:pointer;border-radius:var(--radius);
+}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* ----------------------------------------------------------------- прогресс */
+
+.progress-line{
+  display:flex;align-items:center;gap:.75rem;
+  font-family:var(--mono);font-size:.75rem;color:var(--muted);
+}
+.progress-line__bar{
+  flex:1;height:2px;background:var(--grid);position:relative;max-width:280px;
+}
+.progress-line__bar i{position:absolute;inset:0 auto 0 0;background:var(--ultra)}
+
+/* --------------------------------------------------------------------- формы */
+
+.field{margin-bottom:1.1rem}
+.field label{display:block;font-size:.875rem;font-weight:500;margin-bottom:.3rem}
+.field .req{color:var(--clay)}
+.field input,.field textarea,.field select{
+  width:100%;font:inherit;font-size:.9375rem;
+  padding:.7rem .8rem;background:var(--paper);
+  border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);
+}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--ultra)}
+.field__note{display:block;color:var(--muted);font-size:.75rem;margin-top:.25rem}
+.field__error{
+  display:block;color:var(--clay);font-size:.8125rem;margin-top:.3rem;
+  font-family:var(--mono);
+}
+.field input[aria-invalid="true"],.field textarea[aria-invalid="true"]{border-color:var(--clay)}
+
+.form-status{
+  padding:.9rem 1rem;border:1px solid var(--line);
+  font-size:.875rem;margin-top:1rem;
+}
+.form-status[data-kind="ok"]{border-color:var(--moss);color:var(--moss)}
+.form-status[data-kind="err"]{border-color:var(--clay);color:var(--clay)}
+
+/* --------------------------------------------------------------------- подвал */
+
+.site-foot{
+  border-top:1px solid var(--grid);
+  padding-block:clamp(32px,4vw,56px);
+  font-size:.875rem;color:var(--muted);
+}
+.site-foot a{color:var(--muted)}
+.site-foot__cols{
+  display:grid;gap:var(--gap);
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+}
+.site-foot ul{list-style:none;margin:0;padding:0}
+.site-foot li{margin-bottom:.35rem}
+
+/* --------------------------------------------------------------------- прочее */
+
+.note{
+  border-left:2px solid var(--ochre);
+  padding:.15rem 0 .15rem 1rem;
+  color:var(--muted);font-size:.875rem;max-width:var(--measure);
+}
+
+.tag-demo{
+  display:inline-block;font-family:var(--mono);font-size:.625rem;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ochre);border:1px dashed var(--ochre);padding:.15rem .4rem;
+}
+
+table.plain{border-collapse:collapse;width:100%;font-size:.875rem}
+table.plain th,table.plain td{
+  text-align:left;padding:.6rem .5rem;border-bottom:1px solid var(--grid);vertical-align:top;
+}
+table.plain th{font-family:var(--mono);font-size:.6875rem;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);font-weight:500}
+.table-scroll{overflow-x:auto}
+
+details.faq{border-bottom:1px solid var(--grid);padding:.9rem 0}
+details.faq summary{
+  cursor:pointer;font-family:var(--sans);font-weight:600;font-size:1rem;list-style:none;
+  display:flex;justify-content:space-between;gap:1rem;align-items:center;
+}
+details.faq summary::-webkit-details-marker{display:none}
+details.faq summary::after{content:"+";font-family:var(--mono);color:var(--muted)}
+details.faq[open] summary::after{content:"−"}
+details.faq p{margin-top:.6rem;color:var(--muted)}

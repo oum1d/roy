@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Стенд симуляций · РОЙ</title>
+<style>
+  :root{ --paper:#FBFAF6; --ink:#16181A; --muted:#6E7278; --line:#B9BCB6; --grid:#E4E2DA; --ultra:#2545E6; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden}
+  body{background:var(--paper);color:var(--ink);
+       font:13px/1.45 ui-sans-serif,system-ui,"Segoe UI",sans-serif}
+  #scene{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;right:14px;top:14px;width:280px;padding:12px 14px 14px;
+    background:rgba(251,250,246,.93);border:1px solid var(--line);
+    font-family:ui-monospace,"IBM Plex Mono",Consolas,monospace;font-size:11px;
+    max-height:calc(100vh - 28px);overflow:auto}
+  .panel h1{margin:0 0 4px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    font-weight:600;color:var(--muted)}
+  .panel .lead{margin:0 0 12px;color:var(--muted);font-size:10px;line-height:1.5}
+  .row{margin:0 0 9px}
+  .row label{display:flex;justify-content:space-between;gap:8px;margin-bottom:2px;color:var(--muted)}
+  .row b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .row .hint{display:block;color:var(--line);font-size:9px;margin-bottom:3px}
+  input[type=range]{width:100%;height:16px;margin:0;accent-color:var(--ultra);display:block}
+  button{font:inherit;font-size:10px;padding:4px 8px;background:none;
+    border:1px solid var(--line);color:var(--ink);cursor:pointer}
+  button:hover{border-color:var(--ultra);color:var(--ultra)}
+  .bar{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0 2px}
+  .meter{margin-top:10px;padding-top:8px;border-top:1px solid var(--grid);
+    display:flex;justify-content:space-between;color:var(--muted)}
+  .meter b{color:var(--ink)}
+  .nav{position:fixed;left:14px;top:14px;display:flex;gap:5px;flex-wrap:wrap;
+    font-family:ui-monospace,"IBM Plex Mono",Consolas,monospace}
+  .nav a{font-size:10px;padding:4px 8px;border:1px solid var(--line);color:var(--ink);
+    text-decoration:none;background:rgba(251,250,246,.9)}
+  .nav a[aria-current]{border-color:var(--ultra);color:var(--ultra)}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<nav class="nav" id="nav"></nav>
+
+<div class="panel">
+  <h1 id="title">—</h1>
+  <p class="lead" id="lead"></p>
+  <div id="controls"></div>
+  <div class="bar" id="presets"></div>
+  <div class="bar">
+    <button id="btn-reset">Сбросить</button>
+    <button id="btn-chaos">Сломать</button>
+    <button id="btn-step">+200 шагов</button>
+  </div>
+  <div class="meter"><span>fps</span><b id="m-fps">—</b></div>
+  <div class="meter" style="border:0;padding-top:2px"><span>качество</span><b id="m-q">1</b></div>
+  <div class="meter" style="border:0;padding-top:2px"><span>адрес</span><b id="m-qs">—</b></div>
+</div>
+
+<script src="../assets/js/engine.js"></script>
+<script src="../assets/js/sims.js"></script>
+<script src="../assets/js/sims2.js"></script>
+<script src="../assets/js/sims3.js"></script>
+<script src="../assets/js/sims4.js"></script>
+<script src="../assets/js/sims5.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var qs = ROY.query();
+  var simId = qs.sim || 'boids';
+  var def = ROY.getSim(simId);
+
+  /* навигация по стенду */
+  var nav = document.getElementById('nav');
+  ROY.listSims().forEach(function(id){
+    var a = document.createElement('a');
+    a.href = '?sim=' + id;
+    a.textContent = ROY.getSim(id).title;
+    if (id === simId) a.setAttribute('aria-current', 'true');
+    nav.appendChild(a);
+  });
+
+  if (!def){ document.getElementById('title').textContent = 'нет такой симуляции'; return; }
+
+  document.getElementById('title').textContent = def.title;
+  document.getElementById('lead').textContent = def.lead || '';
+
+  /* начальные значения из адреса */
+  var values = {};
+  def.params.forEach(function(p){
+    if (qs[p.key] !== undefined) values[p.key] = parseFloat(qs[p.key]);
+  });
+
+  var canvas = document.getElementById('scene');
+  var scene = ROY.createScene(canvas, simId, values);
+
+  /* ползунки */
+  var controls = document.getElementById('controls');
+
+  def.params.forEach(function(spec){
+    var row = document.createElement('div');
+    row.className = 'row';
+
+    if (spec.type === 'seed'){
+      var btn = document.createElement('button');
+      btn.textContent = spec.label + ': новый вариант';
+      btn.addEventListener('click', function(){
+        scene.set(spec.key, Math.floor(Math.random() * 100000));
+      });
+      row.appendChild(btn);
+      controls.appendChild(row);
+      return;
+    }
+
+    var lab = document.createElement('label');
+    var name = document.createElement('span');
+    name.textContent = spec.label;
+    var out = document.createElement('b');
+    out.textContent = fmt(spec, scene.p[spec.key]);
+    lab.appendChild(name); lab.appendChild(out);
+
+    var hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = spec.hint || '';
+
+    var input = document.createElement('input');
+    input.type = 'range';
+    input.min = spec.min; input.max = spec.max; input.step = spec.step;
+    input.value = scene.p[spec.key];
+    input.addEventListener('input', function(){
+      scene.set(spec.key, input.value);
+      out.textContent = fmt(spec, scene.p[spec.key]);
+    });
+
+    row.appendChild(lab); row.appendChild(hint); row.appendChild(input);
+    controls.appendChild(row);
+  });
+
+  function fmt(spec, v){
+    return spec.decimals ? Number(v).toFixed(spec.decimals) : String(Math.round(v));
+  }
+
+  /* пресеты */
+  if (def.presets){
+    var box = document.getElementById('presets');
+    def.presets.forEach(function(p){
+      var b = document.createElement('button');
+      b.textContent = p.label;
+      b.addEventListener('click', function(){
+        scene.setAll(p.values);
+        scene.reset();
+        syncInputs();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function syncInputs(){
+    var inputs = controls.querySelectorAll('input[type=range]');
+    var idx = 0;
+    def.params.forEach(function(spec){
+      if (spec.type === 'seed') return;
+      var input = inputs[idx++];
+      if (!input) return;
+      input.value = scene.p[spec.key];
+      var out = input.parentNode.querySelector('label b');
+      if (out) out.textContent = fmt(spec, scene.p[spec.key]);
+    });
+  }
+
+  document.getElementById('btn-reset').addEventListener('click', function(){ scene.reset(); });
+  document.getElementById('btn-step').addEventListener('click', function(){ ROY.warmup(scene, 200); });
+
+  document.getElementById('btn-chaos').addEventListener('click', function(){
+    def.params.forEach(function(spec){
+      if (spec.type === 'seed') return;
+      var extreme = Math.random() > 0.5 ? spec.max : spec.min;
+      ROY.tweenParam(scene, spec.key, extreme, 900);
+    });
+    setTimeout(syncInputs, 950);
+  });
+
+  /* прогрев для скриншотов: headless отдаёт единицы кадров rAF */
+  if (qs.warm) ROY.warmup(scene, parseInt(qs.warm, 10));
+  if (qs.bare !== undefined) {
+    document.querySelector('.panel').style.display = 'none';
+    document.querySelector('.nav').style.display = 'none';
+  }
+
+  document.getElementById('m-qs').textContent = (location.search || 'пусто');
+
+  setInterval(function(){
+    document.getElementById('m-fps').textContent = ROY.fps ? ROY.fps.toFixed(0) : '—';
+    document.getElementById('m-q').textContent = ROY.quality;
+  }, 500);
+})();
+</script>
+</body>
+</html>

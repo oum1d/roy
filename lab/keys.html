@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Проход с клавиатуры · РОЙ</title>
+<style>
+  body{margin:0;background:#FBFAF6;color:#16181A;
+       font:13px/1.5 ui-monospace,"IBM Plex Mono",Consolas,monospace;padding:14px}
+  h1{font:600 14px/1.3 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #E4E2DA;vertical-align:top}
+  th{color:#6E7278;font-weight:500}
+  .ok{color:#4A6B4F}
+  .bad{color:#A65543;font-weight:600}
+  iframe{width:1100px;height:820px;border:0;position:absolute;left:-4000px;top:0}
+  #sum{margin:12px 0;padding:8px 10px;border:1px solid #B9BCB6}
+  #notes{margin-top:14px;font-size:12px;color:#6E7278;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h1>Проход с клавиатуры</h1>
+<div id="sum">идёт проверка…</div>
+<table id="out">
+  <thead><tr><th>страница</th><th>остановок Tab</th><th>первая остановка</th>
+  <th>tabindex&gt;0</th><th>без имени</th><th>в aria-hidden</th><th>порядок</th></tr></thead>
+  <tbody></tbody>
+</table>
+<div id="notes"></div>
+<div id="frames"></div>
+
+<script>
+/* Что здесь проверяется: попадёт ли человек с клавиатуры туда же, куда
+   мышью, и в том ли порядке. Экранный диктор так не проверить — это отдельно
+   и руками; сюда вынесено только то, что считается машинно. */
+var PAGES = [
+  'index.html', 'catalog.html', 'lesson.html?id=starlings',
+  'account.html', 'pricing.html', 'teachers.html', 'privacy.html',
+  'worksheet.html?id=traffic', '404.html'
+];
+
+var SEL = 'a[href],button,input,select,textarea,summary,[tabindex]';
+
+var tbody = document.querySelector('#out tbody');
+var frames = document.getElementById('frames');
+var notes = [];
+var problems = 0;
+var done = 0;
+
+function cell(v, bad){ return '<td class="' + (bad ? 'bad' : 'ok') + '">' + v + '</td>'; }
+
+function visible(el, win){
+  for (var n = el; n && n.nodeType === 1; n = n.parentElement){
+    if (n.hasAttribute('hidden')) return false;
+    var cs = win.getComputedStyle(n);
+    if (!cs) continue;
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+  }
+  var r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}
+
+/* Имя остановки: то, что услышит диктор. Пустая кнопка — это тупик. */
+function name(el){
+  var t = (el.textContent || '').trim();
+  if (t) return t;
+  if (el.getAttribute('aria-label')) return el.getAttribute('aria-label');
+  if (el.getAttribute('title')) return el.getAttribute('title');
+  var img = el.querySelector && el.querySelector('img[alt]');
+  if (img && img.getAttribute('alt').trim()) return img.getAttribute('alt');
+  if (el.id){
+    var lab = el.ownerDocument.querySelector('label[for="' + el.id + '"]');
+    if (lab && lab.textContent.trim()) return lab.textContent.trim();
+  }
+  /* Поле может лежать внутри <label> — тогда никакого for нет, а имя есть.
+     Первая версия этой проверки об этом не знала и объявила галочку
+     согласия безымянной. */
+  var wrap = el.closest && el.closest('label');
+  if (wrap && wrap.textContent.trim()) return wrap.textContent.trim();
+  if (el.getAttribute('placeholder')) return '(только placeholder) ' + el.getAttribute('placeholder');
+  return '';
+}
+
+function check(page, doc, win){
+  var all = [].slice.call(doc.querySelectorAll(SEL));
+  var stops = [];
+
+  for (var i = 0; i < all.length; i++){
+    var el = all[i];
+    if (el.disabled) continue;
+    var ti = el.getAttribute('tabindex');
+    if (ti !== null && parseInt(ti, 10) < 0) continue;
+    if (!visible(el, win)) continue;
+    stops.push(el);
+  }
+
+  var r = { count: stops.length };
+
+  /* Положительный tabindex ломает естественный порядок и почти всегда ошибка. */
+  r.positive = stops.filter(function(el){
+    var ti = parseInt(el.getAttribute('tabindex') || '0', 10);
+    return ti > 0;
+  }).length;
+
+  /* Первая остановка должна быть ссылкой «перейти к содержанию». */
+  r.first = stops.length ? (name(stops[0]) || '(без имени)') : '—';
+
+  r.nameless = 0;
+  stops.forEach(function(el){
+    var nm = name(el);
+    if (!nm || nm.indexOf('(только placeholder)') === 0){
+      r.nameless++;
+      notes.push(page + ': остановка без имени — <' + el.tagName.toLowerCase() +
+                 (el.id ? ' id=' + el.id : '') + '>');
+    }
+  });
+
+  /* Спрятанное от диктора не должно ловить фокус: человек с клавиатуры
+     провалится в невидимое место. */
+  r.inHidden = 0;
+  stops.forEach(function(el){
+    for (var n = el; n && n.nodeType === 1; n = n.parentElement){
+      if (n.getAttribute('aria-hidden') === 'true'){
+        r.inHidden++;
+        notes.push(page + ': фокусируемое внутри aria-hidden — <' +
+                   el.tagName.toLowerCase() + (el.id ? ' id=' + el.id : '') + '>');
+        return;
+      }
+    }
+  });
+
+  /* Порядок обхода против порядка на экране — но только среди соседей.
+
+     Сравнивать всю страницу построчно нельзя: подвал свёрстан колонками, и
+     обход по колонкам там как раз правильный — каждая колонка это отдельная
+     группа со своим заголовком. Читать её поперёк было бы хуже. Первая
+     версия проверки этого не знала и объявила нормальный подвал ошибкой.
+
+     Осмысленно другое: если два элемента лежат в одном контейнере, то по Tab
+     они должны идти так же, как расположены на экране. Именно это ломают
+     order во флексе, row-reverse и абсолютное позиционирование. */
+  var groups = [];
+  stops.forEach(function(el, idx){
+    var p = el.parentElement;
+    var g = null;
+    for (var q = 0; q < groups.length; q++) if (groups[q].p === p) { g = groups[q]; break; }
+    if (!g) { g = { p: p, items: [] }; groups.push(g); }
+    var b = el.getBoundingClientRect();
+    g.items.push({ i: idx, top: b.top + win.pageYOffset, left: b.left, el: el });
+  });
+
+  r.disorder = 0;
+  groups.forEach(function(g){
+    if (g.items.length < 2) return;
+    var sorted = g.items.slice().sort(function(a, b){
+      if (Math.abs(a.top - b.top) > 14) return a.top - b.top;
+      return a.left - b.left;
+    });
+    for (var k = 0; k < sorted.length; k++){
+      if (sorted[k].i !== g.items[k].i){
+        r.disorder++;
+        if (r.disorder <= 3){
+          notes.push(page + ': порядок — «' + (name(sorted[k].el) || '?').slice(0, 32) +
+                     '» на экране раньше, чем по Tab');
+        }
+      }
+    }
+  });
+
+  return r;
+}
+
+PAGES.forEach(function(page){
+  var f = document.createElement('iframe');
+  f.src = '../' + page;
+  f.addEventListener('load', function(){
+    var r, err = null;
+    try { r = check(page, f.contentDocument, f.contentWindow); }
+    catch (e) { err = e.message; }
+
+    var tr = document.createElement('tr');
+    if (!r){
+      tr.innerHTML = '<td>' + page + '</td><td colspan="6" class="bad">' + err + '</td>';
+      problems++;
+    } else {
+      var firstBad = r.first.indexOf('одержан') === -1 && r.first.indexOf('исту') === -1;
+      var bad = (r.positive ? 1 : 0) + (r.nameless ? 1 : 0) +
+                (r.inHidden ? 1 : 0) + (r.disorder ? 1 : 0) + (firstBad ? 1 : 0);
+      problems += bad;
+      tr.innerHTML = '<td>' + page + '</td>' +
+        '<td>' + r.count + '</td>' +
+        cell(r.first.slice(0, 26), firstBad) +
+        cell(r.positive || 'нет', r.positive) +
+        cell(r.nameless || 'нет', r.nameless) +
+        cell(r.inHidden || 'нет', r.inHidden) +
+        cell(r.disorder ? r.disorder + ' вразнобой' : 'по экрану', r.disorder);
+    }
+    tbody.appendChild(tr);
+
+    if (++done === PAGES.length){
+      document.getElementById('sum').textContent =
+        problems === 0 ? 'ПРОХОД ЧИСТЫЙ: ' + PAGES.length + ' страниц'
+                       : 'ЗАМЕЧАНИЙ: ' + problems;
+      document.getElementById('notes').textContent = notes.slice(0, 24).join('\n');
+      document.title = problems === 0 ? 'KEYS OK ' + PAGES.length : 'KEYS ПРОБЛЕМ ' + problems;
+    }
+  });
+  frames.appendChild(f);
+});
+</script>
+</body>
+</html>

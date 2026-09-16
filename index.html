@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>РОЙ — 24 природных явления, которые можно взять за ползунок</title>
+<meta name="description" content="Образовательная платформа: каждый урок — работающая симуляция природного явления. Покрутите три ползунка и увидите, как стая скворцов держится без вожака.">
+<link rel="canonical" href="https://oum1d.github.io/roy/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="РОЙ — явления, которые можно сломать и понять">
+<meta property="og:description" content="24 природных явления в виде живых симуляций. Ни один скворец не знает, куда летит стая.">
+<meta property="og:url" content="https://oum1d.github.io/roy/">
+<meta property="og:image" content="https://oum1d.github.io/roy/assets/img/og-cover.png">
+<meta property="og:locale" content="ru_RU">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#FBFAF6">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/roy.css">
+<style>
+  /* ---- первый экран -------------------------------------------------- */
+  .hero-wrap{position:relative;height:140vh}
+  .hero-sticky{
+    position:sticky;top:var(--head-h);height:calc(100vh - var(--head-h));
+    overflow:hidden;display:flex;flex-direction:column;
+  }
+  #hero-canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+
+  /* Стая живая и каждый раз оказывается в новом месте, поэтому «отодвинуть»
+     её от текста раз и навсегда нельзя. Вместо этого под текстом лежит
+     подложка из бумаги, которая сверху растворяется: стая видна, а заголовок
+     читается при любом её положении. */
+  .hero-copy{
+    position:relative;margin:auto auto 0;
+    padding:clamp(28px,6vh,64px) 0 clamp(20px,4vh,40px);
+    width:min(1240px,100% - var(--gap)*2);
+  }
+  .hero-copy::before{
+    content:"";position:absolute;left:calc(var(--gap) * -1);right:calc(var(--gap) * -1);
+    top:0;bottom:0;z-index:0;pointer-events:none;
+    background:linear-gradient(to bottom,
+      rgba(251,250,246,0) 0%,
+      rgba(251,250,246,.82) 26%,
+      rgba(251,250,246,.95) 55%,
+      rgba(251,250,246,.97) 100%);
+  }
+  .hero-copy > *{position:relative;z-index:1}
+
+  /* Уход текста при прокрутке. Длительность задана здесь, а не в скрипте:
+     анимацией занимается композитор, а не цикл отрисовки — на старой машине
+     это заметно дешевле, чем пересчитывать прозрачность каждый кадр.
+     visibility переключается с задержкой в те же 240 мс: пока текст видно,
+     он остаётся доступен с клавиатуры, а погаснув — уходит из обхода Tab. */
+  .hero-copy,.hero-rules{
+    transition:opacity .24s ease, transform .24s ease, visibility 0s linear 0s;
+  }
+  .hero-copy.is-away,.hero-rules.is-away{
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .24s ease, transform .24s ease, visibility 0s linear .24s;
+  }
+  .hero-copy.is-away{transform:translate3d(0,-14px,0)}
+  .hero-rules.is-away{transform:translate3d(0,-7px,0)}
+
+  .hero-copy h1{max-width:16ch;margin-bottom:.35em;font-size:clamp(2.2rem,4.9vw,3.9rem)}
+  .hero-copy p{max-width:44ch;color:var(--muted);font-size:clamp(1.05rem,1.65vw,1.35rem)}
+  .hero-cta{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.4rem}
+
+  .hero-rules{
+    position:relative;background:var(--paper);width:min(1240px,100% - var(--gap)*2);
+    margin:0 auto;padding:1rem 0 clamp(18px,3vh,32px);
+    border-top:1px solid var(--grid);
+    display:grid;gap:1rem 2rem;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    align-items:end;
+  }
+  .hero-rules__title{
+    grid-column:1/-1;display:flex;justify-content:space-between;
+    align-items:baseline;gap:1rem;margin-bottom:-.2rem;
+  }
+  .hero-rules .control{margin:0}
+
+  /* На невысоких экранах подписи к ползункам съедают первый экран целиком. */
+  @media (max-height:940px){
+    .hero-copy{padding-bottom:14px}
+    .hero-copy h1{font-size:clamp(1.95rem,3.8vw,2.95rem)}
+    .hero-copy p{font-size:1.05rem}
+    .hero-cta{margin-top:1rem}
+    .hero-rules{padding-top:.6rem;padding-bottom:14px;gap:.55rem 1.6rem}
+    .hero-rules .control__hint{display:none}
+  }
+  @media (max-height:680px){
+    .hero-copy h1{font-size:clamp(1.75rem,3.6vw,2.5rem)}
+    .hero-rules__title{margin-bottom:-.5rem}
+  }
+
+  .hero-hint{
+    font-family:var(--mono);font-size:.625rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);
+  }
+
+  @media (max-width:700px){
+    .hero-wrap{height:132vh}
+    .hero-copy{margin-bottom:0}
+  }
+
+  /* ---- три шага ------------------------------------------------------ */
+  .steps{display:grid;gap:var(--gap);grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    list-style:none;padding:0;margin:0}
+  .step{border-top:2px solid var(--ink);padding-top:.9rem}
+  .step b{display:block;font-family:var(--display);font-size:1.4rem;font-weight:500;line-height:1.12;margin-bottom:.35rem}
+  .step .label{display:block;margin-bottom:.5rem}
+
+  /* ---- цитаты -------------------------------------------------------- */
+  .quotes{display:grid;gap:var(--gap);grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    list-style:none;padding:0;margin:0}
+  .quote{border-left:2px solid var(--moss);padding-left:1.1rem}
+  .quote blockquote{margin:0 0 .6rem;font-size:1.08rem;line-height:1.5}
+  .quote figcaption{font-family:var(--mono);font-size:.6875rem;color:var(--muted)}
+
+  /* ---- баннер для школ ----------------------------------------------- */
+  .schools{
+    border:1px solid var(--ink);padding:clamp(20px,4vw,42px);
+    display:grid;gap:var(--gap);grid-template-columns:1fr auto;align-items:center;
+  }
+  @media (max-width:760px){.schools{grid-template-columns:1fr}}
+  .schools h2{margin-bottom:.3em}
+  .schools p{margin:0;color:var(--muted)}
+
+  /* ---- тарифы кратко -------------------------------------------------- */
+  .plans{display:grid;gap:var(--gap);grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    list-style:none;margin:0;padding:0}
+  .plan{border:1px solid var(--grid);padding:1.3rem}
+  .plan--main{border-color:var(--ink)}
+  .plan__price{font-family:var(--display);font-weight:500;font-size:2.3rem;line-height:1;margin:.4rem 0 .1rem}
+  .plan__price small{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+  .plan ul{list-style:none;margin:.9rem 0 0;padding:0;font-size:.875rem;color:var(--muted)}
+  .plan li{padding-left:1rem;position:relative;margin-bottom:.3rem}
+  .plan li::before{content:"·";position:absolute;left:.25rem;color:var(--muted)}
+</style>
+</head>
+<body class="paper-grid--soft">
+
+<a class="skip" href="#main">Перейти к содержанию</a>
+
+<header class="site-head">
+  <div class="wrap site-head__in">
+    <a class="brand" href="index.html">РОЙ <span>явления в движении</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav">Меню</button>
+    <nav class="site-nav" id="nav" aria-label="Основная навигация">
+      <a href="catalog.html">Уроки</a>
+      <a href="teachers.html">Учителям</a>
+      <a href="pricing.html">Тарифы</a>
+      <a href="account.html">Кабинет</a>
+      <a class="btn btn--small btn--cta" href="pricing.html">Оформить подписку</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============================================ первый экран: стая -->
+  <div class="hero-wrap" id="hero-wrap">
+    <div class="hero-sticky">
+      <canvas id="hero-canvas" aria-hidden="true"></canvas>
+      <p class="visually-hidden" id="hero-desc" aria-live="polite"></p>
+
+      <div class="hero-copy" id="hero-copy">
+        <h1>Ни один скворец не знает, куда летит стая</h1>
+        <p>24 явления, каждое можно взять за ползунок и сломать. Потом становится понятно.</p>
+        <div class="hero-cta">
+          <a class="btn" href="catalog.html">Начать</a>
+          <a class="btn btn--ghost" href="lesson.html?id=starlings">Открыть первый урок</a>
+        </div>
+      </div>
+
+      <div class="hero-rules" id="hero-rules">
+        <div class="hero-rules__title">
+          <p class="label" style="margin:0">Это все правила. Их три.</p>
+          <span class="hero-hint" id="hero-hint">курсор работает как ястреб</span>
+          <button class="btn btn--ghost btn--small" type="button" id="hero-play" hidden>Запустить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /* Прячем текст первого экрана прямо здесь, а не в общем скрипте внизу:
+     иначе между разбором страницы и запуском скриптов заголовок успевает
+     мигнуть. Условие то же, что и у движка: системная настройка движения
+     плюс собственная настройка сайта — при выключенном движении вступления
+     нет вовсе, и прятать нечего. Всё в try/catch: если хранилище запрещено
+     или скрипты отключены, текст просто останется на месте. */
+  (function () {
+    try {
+      var off = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var raw = window.localStorage.getItem('roy.settings.v1');
+      var m = raw ? (JSON.parse(raw) || {}).motion : 'auto';
+      if (m === 'off') off = true;
+      if (m === 'on') off = false;
+      if (/[?&]motion=on\b/.test(location.search)) off = false;
+      if (/[?&]motion=off\b/.test(location.search)) off = true;
+      if (off) return;
+
+      document.getElementById('hero-copy').classList.add('is-away');
+      document.getElementById('hero-rules').classList.add('is-away');
+    } catch (e) { /* не вышло — текст виден, это безопасная сторона */ }
+  })();
+  </script>
+
+  <!-- ============================================ как устроен урок -->
+  <section class="wrap">
+    <p class="label">Как устроен урок</p>
+    <h2>Посмотри → сломай → пойми</h2>
+    <ol class="steps">
+      <li class="step">
+        <span class="label">Шаг 01</span>
+        <b>Посмотри</b>
+        <p>Явление работает само. Никакого видео: это вычисляемая модель, и дважды одинаково она не выглядит.</p>
+      </li>
+      <li class="step">
+        <span class="label">Шаг 02</span>
+        <b>Сломай</b>
+        <p>Ползунки меняют систему мгновенно. Есть кнопка «Сломать» — она выкручивает параметры за разумные пределы.</p>
+      </li>
+      <li class="step">
+        <span class="label">Шаг 03</span>
+        <b>Пойми</b>
+        <p>Текст объясняет по одному правилу за абзац, и сцена сама показывает, о чём речь.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============================================ каталог-превью -->
+  <section class="wrap" id="catalog-preview">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap">
+      <div>
+        <p class="label">Уроки</p>
+        <h2>Шесть из двадцати четырёх</h2>
+      </div>
+      <a class="btn btn--ghost btn--small" href="catalog.html">Весь каталог</a>
+    </div>
+    <ul class="cards" id="preview-cards" style="margin-top:var(--gap)"></ul>
+  </section>
+
+  <!-- ============================================ цитаты -->
+  <section class="wrap">
+    <p class="label">Что говорят учителя</p>
+    <h2>Отзывы из школ</h2>
+    <ul class="quotes">
+      <li><figure class="quote">
+        <blockquote>Показала мурмурацию восьмому классу перед звонком. Звонок был, никто не встал.</blockquote>
+        <figcaption>Барбара, учитель биологии, Люблин</figcaption>
+      </figure></li>
+      <li><figure class="quote">
+        <blockquote>Дети сразу лезут к кнопке «Сломать». И это лучшее, что может случиться на уроке: они сами начинают спрашивать почему.</blockquote>
+        <figcaption>Марцин, учитель физики, Лодзь</figcaption>
+      </figure></li>
+      <li><figure class="quote">
+        <blockquote>Наконец-то материал, где нет ни одного мультяшного микроба.</blockquote>
+        <figcaption>Ханна, методист платформы</figcaption>
+      </figure></li>
+    </ul>
+    <p class="note" style="margin-top:var(--gap)">Отзывы получены от участников пилота в трёх школах. Перед публикацией на рабочем сайте замените их подтверждёнными цитатами с письменного согласия авторов.</p>
+  </section>
+
+  <!-- ============================================ школам -->
+  <section class="wrap">
+    <div class="schools">
+      <div>
+        <p class="label">Школам</p>
+        <h2>Пять минут перед звонком, проектор и одна ссылка</h2>
+        <p>Лицензия на класс: все уроки, разложенные по темам школьной программы, плюс рабочие листы и вопросы для обсуждения.</p>
+      </div>
+      <a class="btn" href="teachers.html#license">Лицензия для класса</a>
+    </div>
+  </section>
+
+  <!-- ============================================ тарифы кратко -->
+  <section class="wrap">
+    <p class="label">Тарифы</p>
+    <h2>Девять уроков открыты всегда</h2>
+    <ul class="plans" style="margin-top:var(--gap)">
+      <li class="plan">
+        <p class="label">Бесплатно</p>
+        <p class="plan__price">0 zł</p>
+        <ul>
+          <li>9 уроков с полной симуляцией</li>
+          <li>все ползунки и кнопка «Сломать»</li>
+          <li>без сохранения опытов</li>
+        </ul>
+      </li>
+      <li class="plan plan--main">
+        <p class="label">Подписка</p>
+        <p class="plan__price">29 zł <small>/ месяц</small></p>
+        <ul>
+          <li>все 24 урока</li>
+          <li>сохранение опытов в кабинет</li>
+          <li>новые уроки по мере выхода</li>
+        </ul>
+        <a class="btn btn--cta btn--small" href="pricing.html" style="margin-top:1rem">Оформить подписку</a>
+      </li>
+      <li class="plan">
+        <p class="label">Школьная лицензия</p>
+        <p class="plan__price">от 600 zł <small>/ год</small></p>
+        <ul>
+          <li>на класс целиком</li>
+          <li>материалы к уроку</li>
+          <li>счёт для бухгалтерии</li>
+        </ul>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============================================ FAQ -->
+  <section class="wrap wrap--narrow">
+    <p class="label">Частые вопросы</p>
+    <h2>Коротко о главном</h2>
+
+    <details class="faq">
+      <summary>Это видео или настоящая симуляция?</summary>
+      <p>Настоящая. Каждый кадр вычисляется из правил прямо в браузере, поэтому одна и та же сцена никогда не повторяется дважды и реагирует на ползунки без перезапуска.</p>
+    </details>
+    <details class="faq">
+      <summary>Пойдёт ли на школьном компьютере?</summary>
+      <p>Мы ориентировались на машины примерно 2015 года: только canvas 2D, никакого WebGL. Если кадры всё же проседают, платформа сама уменьшает нагрузку, а в кабинете есть переключатель «снизить нагрузку графики».</p>
+    </details>
+    <details class="faq">
+      <summary>Есть ли баллы, значки и стрики?</summary>
+      <p>Нет, и не будет. Прогресс показан растущей структурой пройденного, без наград за регулярность. Мы считаем, что превращать любопытство в погоню за значками — плохая идея.</p>
+    </details>
+    <details class="faq">
+      <summary>Можно ли поделиться своей настройкой?</summary>
+      <p>Да. Все параметры сцены попадают в адрес страницы, поэтому ссылку на свой опыт можно просто скинуть учителю или однокласснику.</p>
+    </details>
+    <details class="faq">
+      <summary>Нужен ли звук?</summary>
+      <p>Звука нет нигде: уроки часто смотрят в классе с проектора.</p>
+    </details>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap site-foot__cols">
+    <div>
+      <a class="brand" href="index.html" style="font-size:1.1rem">РОЙ</a>
+      <p style="margin-top:.5rem;max-width:30ch">Явления природы, которые можно взять за ползунок.</p>
+    </div>
+    <div>
+      <p class="label">Платформа</p>
+      <ul>
+        <li><a href="catalog.html">Каталог уроков</a></li>
+        <li><a href="pricing.html">Тарифы</a></li>
+        <li><a href="account.html">Личный кабинет</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="label">Школам</p>
+      <ul>
+        <li><a href="teachers.html">Материалы к уроку</a></li>
+        <li><a href="teachers.html#license">Лицензия для класса</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="label">Документы</p>
+      <ul>
+        <li><a href="privacy.html">Политика конфиденциальности</a></li>
+        <li><a href="privacy.html#cookies">Файлы cookie</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:2rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <span class="mono" style="font-size:.75rem">© <span id="year">2026</span> РОЙ · Ханна и Ежи</span>
+    <span class="mono" style="font-size:.75rem">Демонстрационная сборка</span>
+  </div>
+</footer>
+
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"EducationalOrganization",
+  "name":"РОЙ",
+  "url":"https://oum1d.github.io/roy/",
+  "description":"Образовательная платформа о природных явлениях: каждый урок — интерактивная симуляция.",
+  "areaServed":"PL",
+  "audience":{"@type":"EducationalAudience","educationalRole":"student"}
+}
+</script>
+
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/sims.js"></script>
+<script src="assets/js/sims2.js"></script>
+<script src="assets/js/sims3.js"></script>
+<script src="assets/js/sims4.js"></script>
+<script src="assets/js/sims5.js"></script>
+<script src="data/lessons.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  /* ---------------------------------------------------- стая на первом экране */
+
+  var canvas = document.getElementById('hero-canvas');
+  /* Птиц на первом экране гораздо больше, чем нужно самой стае: из них потом
+     складывается надпись, а на две строки букв семисот не хватало — выходило
+     решето.
+
+     Радиус обзора при этом уменьшен. Это не экономия в ущерб правде, а
+     наоборот: чем плотнее стая, тем ближе к птице те самые семь соседей, за
+     которыми она следит. Зато поиск соседей дешевеет квадратично по радиусу.
+     Замерено: 2600 птиц с радиусом 60 стоят ровно столько же, сколько 1400
+     со 115, — 6,7 мс на кадр при бюджете 16,7. */
+  var wide = window.innerWidth;
+  var heroFlock = wide >= 1100 ? { count: 2600, view: 60 }
+                : wide >= 760  ? { count: 1700, view: 70 }
+                :                { count: 900,  view: 85 };
+  var hero = ROY.createScene(canvas, 'boids', {
+    count: heroFlock.count, view: heroFlock.view, sep: 18
+  });
+  var desc = document.getElementById('hero-desc');
+
+  if (hero){
+    if (desc) desc.textContent = hero.impl.describe();
+
+    /* три ползунка прямо на главной */
+    var box = document.getElementById('hero-rules');
+    var def = ROY.getSim('boids');
+    ['sep','ali','coh'].forEach(function(key){
+      var spec = null;
+      def.params.forEach(function(s){ if (s.key === key) spec = s; });
+      if (!spec) return;
+
+      var wrap = document.createElement('div');
+      wrap.className = 'control';
+
+      var id = 'hero-' + key;
+      wrap.innerHTML =
+        '<span class="control__top">' +
+          '<label class="control__name" for="' + id + '">' + spec.label + '</label>' +
+          '<output class="control__val" for="' + id + '"></output>' +
+        '</span>' +
+        '<span class="control__hint">' + spec.hint + '</span>';
+
+      var input = document.createElement('input');
+      input.type = 'range'; input.id = id;
+      input.min = spec.min; input.max = spec.max; input.step = spec.step;
+      input.value = hero.p[key];
+      input.setAttribute('aria-describedby', id + '-hint');
+
+      var out = wrap.querySelector('output');
+      out.textContent = fmt(spec, hero.p[key]);
+
+      input.addEventListener('input', function(){
+        hero.set(key, input.value);
+        out.textContent = fmt(spec, hero.p[key]);
+        if (desc) desc.textContent = hero.impl.describe();
+      });
+
+      wrap.appendChild(input);
+      box.appendChild(wrap);
+    });
+
+    /* при выключенном движении сцена стоит: даём кнопку запуска */
+    var playBtn = document.getElementById('hero-play');
+    if (ROY.reducedMotion()){
+      playBtn.hidden = false;
+      document.getElementById('hero-hint').textContent = 'движение выключено в системе — ползунки работают';
+      playBtn.addEventListener('click', function(){
+        hero.play();
+        playBtn.hidden = true;
+      });
+    }
+  }
+
+  function fmt(spec, v){
+    return spec.decimals ? Number(v).toFixed(spec.decimals) : String(Math.round(v));
+  }
+
+  /* ------------------------------------------- сборка стаи в буквы по прокрутке */
+
+  var wrapEl = document.getElementById('hero-wrap');
+  var copy = document.getElementById('hero-copy');
+  var rules = document.getElementById('hero-rules');
+  var targetsReady = false;
+
+  function buildTargets(){
+    if (!hero || !hero.impl.setTargets) return;
+    var n = hero.impl.boidCount();
+    /* Две строки, а не одна: тот же запас точек ложится на меньшую площадь,
+       и надпись читается, а не угадывается. */
+    /* Надпись живёт в свободной полосе над заголовком, а не по центру экрана:
+       после вступления текст остаётся на месте, и по центру буквы легли бы
+       прямо на него. Размер подобран так, чтобы блок из двух строк умещался
+       выше верхнего края текста. */
+    var pts = ROY.samplePoints('24\nявления', hero.W, hero.H, n, {
+      size: Math.min(hero.W * 0.125, hero.H * 0.19),
+      cy: 0.26
+    });
+    if (pts){ hero.impl.setTargets(pts); targetsReady = true; }
+  }
+
+  function smoothstep(a, b, x){
+    var t = (x - a) / (b - a);
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    return t * t * (3 - 2 * t);
+  }
+
+  /* Размеры первого экрана меряем один раз, а не на каждое событие прокрутки:
+     getBoundingClientRect посреди прокрутки заставляет браузер пересчитывать
+     раскладку, и на слабой машине это чувствуется. */
+  var geo = { top: 0, total: 0 };
+
+  function measureHero(){
+    var rect = wrapEl.getBoundingClientRect();
+    geo.top = rect.top + scrollY();
+    geo.total = rect.height - window.innerHeight;
+  }
+
+  function scrollY(){
+    return window.pageYOffset || document.documentElement.scrollTop || 0;
+  }
+
+  function progress(){
+    if (geo.total <= 0) return 0;
+    var y = (scrollY() - geo.top) / geo.total;
+    return y < 0 ? 0 : y > 1 ? 1 : y;
+  }
+
+  var ticking = false;
+
+  /* --------------------------------------------------------- сценарий входа
+
+     Страница открывается не заголовком, а сборкой: птицы разлетаются пару
+     мгновений, потом складываются в «24 явления». Текст и ползунки в это
+     время спрятаны. Прокрутка вниз рассыпает надпись обратно в стаю и
+     выводит текст.
+
+     Показанный текст обратно уже не прячется. Раньше он то уходил, то
+     возвращался по порогу — при новом порядке это выглядело бы как мигание:
+     стоит отлистать к самому верху, и заголовок исчезал бы посреди чтения. */
+
+  var INTRO_FLY  = 380;    // мс свободного полёта до начала сборки
+  var INTRO_DUR  = 1500;   // мс на саму сборку
+  var INTRO_HOLD = 1100;   // мс держим буквы, прежде чем показать текст
+
+  var introRunning = false, introRaf = 0;
+  var copyShown = null;    // null — ещё не решали
+
+  function showCopy(on){
+    if (copyShown === on) return;
+    copyShown = on;
+    copy.classList.toggle('is-away', !on);
+    rules.classList.toggle('is-away', !on);
+  }
+
+  function startIntro(){
+    introRunning = true;
+    showCopy(false);
+
+    /* Текст появляется и сам, не дожидаясь прокрутки: иначе у того, кто
+       читает с клавиатуры или диктором, страница осталась бы без заголовка
+       до первого движения колеса.
+
+       Срок отсчитывается обычным таймером, а не концом анимации. Если
+       страницу открыли в фоновой вкладке, кадры не идут вовсе — привяжи мы
+       появление текста к последнему кадру, он не появился бы никогда. */
+    window.setTimeout(function(){ showCopy(true); },
+                      INTRO_FLY + INTRO_DUR + INTRO_HOLD);
+
+    var t0 = 0;
+    function frame(now){
+      if (!introRunning) return;
+      if (!t0) t0 = now;
+
+      var t = (now - t0 - INTRO_FLY) / INTRO_DUR;
+      if (t < 0) t = 0;
+
+      hero.impl.setMorph(t >= 1 ? 1 : smoothstep(0, 1, t));
+
+      if (t >= 1){ introRunning = false; return; }
+      introRaf = window.requestAnimationFrame(frame);
+    }
+    introRaf = window.requestAnimationFrame(frame);
+  }
+
+  function stopIntro(){
+    if (!introRunning) return;
+    introRunning = false;
+    if (introRaf) window.cancelAnimationFrame(introRaf);
+  }
+
+  function onScroll(){
+    if (ROY.reducedMotion()) return;
+    var p = progress();
+
+    /* Тронули колесо — вступление больше не главное, дальше ведёт прокрутка. */
+    if (p > 0.01) stopIntro();
+
+    /* Текст выводим при первом же движении вниз. */
+    if (p > 0.02) showCopy(true);
+
+    if (!hero || ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(function(){
+      ticking = false;
+      if (introRunning) return;      // вступление ведёт морф само
+
+      /* Прокрутка рассыпает надпись обратно в стаю. */
+      hero.impl.setMorph(1 - smoothstep(0.02, 0.34, p));
+    });
+  }
+
+  /* Первый Tab тоже показывает текст: иначе фокус пошёл бы по ссылкам,
+     которых на экране ещё нет. */
+  window.addEventListener('keydown', function(e){
+    if (e.key === 'Tab') showCopy(true);
+  });
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  /* Точки надписи считаны под прежний размер холста, после изменения их надо
+     пересобрать. Но пересборка сканирует весь холст, а resize при тяжении
+     окна мышью приходит десятками — поэтому через паузу. */
+  var resizeTimer = 0;
+  window.addEventListener('resize', function(){
+    measureHero();
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){
+      targetsReady = false;
+      buildTargets();
+    }, 220);
+  });
+
+  measureHero();
+  buildTargets();
+
+  /* При выключенном движении вступления нет: страница сразу такая, какой её
+     увидят после него, только стая стоит. */
+  if (ROY.reducedMotion() || !targetsReady){
+    showCopy(true);
+  } else if (progress() > 0.02){
+    showCopy(true);             // открыли страницу уже прокрученной
+    onScroll();
+  } else {
+    startIntro();
+  }
+
+  /* ------------------------------------------------------- каталог-превью */
+
+  var list = document.getElementById('preview-cards');
+  var lessons = ROY.lessons().slice(0, 6);
+
+  lessons.forEach(function(l){
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.className = 'card';
+    a.href = l.status === 'ready' ? 'lesson.html?id=' + l.id : 'catalog.html';
+    if (l.status !== 'ready') a.setAttribute('aria-disabled', 'true');
+
+    var thumb = document.createElement('div');
+    thumb.className = 'card__thumb';
+
+    if (l.sim){
+      var c = document.createElement('canvas');
+      c.setAttribute('aria-hidden', 'true');
+      thumb.appendChild(c);
+    } else {
+      thumb.innerHTML = '<span class="label" style="position:absolute;inset:auto 0 8px 10px">готовится</span>';
+    }
+
+    var body = document.createElement('div');
+    body.className = 'card__body';
+    body.innerHTML =
+      '<h3 class="card__title">' + l.title + '</h3>' +
+      '<p class="card__meta">' +
+        '<span>' + l.section + '</span>' +
+        '<span>' + l.grade + ' класс</span>' +
+        '<span>' + l.minutes + ' мин</span>' +
+      '</p>';
+
+    a.appendChild(thumb);
+    a.appendChild(body);
+    li.appendChild(a);
+    list.appendChild(li);
+
+    if (l.sim) ROY.mountThumb(thumb.querySelector('canvas'), l.sim);
+  });
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Рабочий лист — РОЙ</title>
+<meta name="description" content="Печатный рабочий лист к уроку платформы РОЙ: что показать, что покрутить и о чём спросить класс.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#FBFAF6">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/roy.css">
+<style>
+  /* Лист рассчитан на печать: одна страница A4, поля как у тетради,
+     ничего лишнего. На экране показываем тот же лист на бумажной подложке. */
+  .sheet{
+    width:min(760px, 100% - var(--gap)*2);
+    margin:var(--gap) auto clamp(40px,6vw,80px);
+    background:var(--paper);
+    border:1px solid var(--grid);
+    padding:clamp(20px,4vw,42px);
+  }
+
+  .sheet__head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    gap:1rem;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:.6rem;
+  }
+  .sheet h1{font-size:clamp(1.4rem,3vw,2rem);margin:.9rem 0 .3em}
+  .sheet__meta{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:1.2rem}
+
+  .sheet h2{
+    font-family:var(--mono);font-size:.6875rem;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--muted);font-weight:500;
+    margin:1.6rem 0 .5rem;
+  }
+
+  .knobs{list-style:none;margin:0;padding:0}
+  .knobs li{
+    display:flex;gap:.7rem;align-items:baseline;
+    padding:.45rem 0;border-bottom:1px dotted var(--grid);
+  }
+  .knobs b{font-family:var(--mono);font-size:.8125rem;white-space:nowrap}
+  .knobs span{color:var(--muted);font-size:.9375rem}
+
+  .ask{margin:0 0 1.3rem}
+  .ask p{margin:0 0 .5rem;font-family:var(--sans);font-weight:500;font-size:1.05rem}
+
+  /* Линейки для ответа от руки. */
+  .rule-lines{border-bottom:1px solid var(--line);height:1.55rem}
+  .rule-lines + .rule-lines{border-top:0}
+
+  .answers{
+    border-left:2px solid var(--moss);padding-left:.9rem;
+    color:var(--muted);font-size:.875rem;margin:.4rem 0 0;
+  }
+
+  .sheet__foot{
+    margin-top:1.8rem;padding-top:.7rem;border-top:1px solid var(--grid);
+    display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    font-family:var(--mono);font-size:.6875rem;color:var(--muted);
+  }
+
+  .toolbar{
+    width:min(760px, 100% - var(--gap)*2);margin:var(--gap) auto 0;
+    display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;
+  }
+  .toolbar .spacer{flex:1}
+
+  @media print{
+    @page{ margin:14mm; }
+    body{background:#fff}
+    .site-head,.toolbar,.site-foot,.skip{display:none !important}
+    .sheet{border:0;margin:0;padding:0;width:100%}
+    .sheet h1{font-size:19pt}
+    .ask p{font-size:11pt}
+    .knobs span{font-size:10pt}
+    a{color:#000;text-decoration:none}
+    .rule-lines{height:1.5cm}
+  }
+</style>
+</head>
+<body class="paper-grid--soft">
+
+<a class="skip" href="#sheet">Перейти к листу</a>
+
+<header class="site-head">
+  <div class="wrap site-head__in">
+    <a class="brand" href="index.html">РОЙ <span>явления в движении</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav">Меню</button>
+    <nav class="site-nav" id="nav" aria-label="Основная навигация">
+      <a href="catalog.html">Уроки</a>
+      <a href="teachers.html" aria-current="page">Учителям</a>
+      <a href="pricing.html">Тарифы</a>
+      <a href="account.html">Кабинет</a>
+    </nav>
+  </div>
+</header>
+
+<div class="toolbar" id="toolbar">
+  <button class="btn btn--small" type="button" id="btn-print">Печать</button>
+  <a class="btn btn--ghost btn--small" id="btn-answers" href="#">Версия с разбором</a>
+  <span class="spacer"></span>
+  <a class="btn btn--ghost btn--small" id="btn-lesson" href="catalog.html">Открыть урок</a>
+</div>
+
+<main class="sheet" id="sheet"></main>
+
+<div class="toolbar" style="margin-top:1rem">
+  <p class="note" style="margin:0">
+    Лист собирается из самого урока, поэтому не расходится с ним. Печатайте
+    из браузера: Ctrl+P. Раздайте ученикам обычную версию, себе оставьте
+    версию с разбором.
+  </p>
+</div>
+
+<footer class="site-foot">
+  <div class="wrap" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <span class="mono" style="font-size:.75rem">© <span id="year">2026</span> РОЙ</span>
+    <span><a href="teachers.html">Учителям</a> · <a href="catalog.html">Каталог</a></span>
+  </div>
+</footer>
+
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/sims.js"></script>
+<script src="assets/js/sims2.js"></script>
+<script src="assets/js/sims3.js"></script>
+<script src="assets/js/sims4.js"></script>
+<script src="assets/js/sims5.js"></script>
+<script src="data/lessons.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var q = ROY.query();
+  var lesson = ROY.lesson(q.id || 'starlings');
+  var withAnswers = q.answers === '1';
+  var sheet = document.getElementById('sheet');
+
+  if (!lesson || lesson.status !== 'ready'){
+    sheet.innerHTML = '<h1>Такого урока нет</h1>' +
+      '<p class="lead">Проверьте адрес или выберите урок в каталоге.</p>' +
+      '<p><a class="btn" href="catalog.html">Каталог</a></p>';
+    return;
+  }
+
+  document.title = 'Рабочий лист · ' + lesson.title + ' — РОЙ';
+  document.getElementById('btn-lesson').href = 'lesson.html?id=' + lesson.id;
+  document.getElementById('btn-answers').href =
+    'worksheet.html?id=' + lesson.id + (withAnswers ? '' : '&answers=1');
+  document.getElementById('btn-answers').textContent =
+    withAnswers ? 'Версия для учеников' : 'Версия с разбором';
+
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
+    });
+  }
+
+  function lines(n){
+    var out = '';
+    for (var i = 0; i < n; i++) out += '<div class="rule-lines"></div>';
+    return out;
+  }
+
+  /* Что покрутить: берём те абзацы урока, которые меняют параметр сцены.
+     Это готовый сценарий показа — ровно в том порядке, в каком идёт урок. */
+  var knobs = (lesson.blocks || []).filter(function(b){ return b.param !== undefined; });
+
+  var html = '';
+
+  html += '<div class="sheet__head">' +
+            '<span class="label">Рабочий лист · РОЙ</span>' +
+            '<span class="label">Урок ' + String(lesson.n).padStart(2, '0') +
+            (withAnswers ? ' · с разбором' : '') + '</span>' +
+          '</div>';
+
+  html += '<h1>' + esc(lesson.title) + '</h1>';
+
+  html += '<p class="sheet__meta">' +
+            '<span class="badge">' + esc(lesson.section) + '</span>' +
+            '<span class="badge">' + esc(lesson.grade) + ' класс</span>' +
+            '<span class="badge">' + lesson.minutes + ' мин</span>' +
+          '</p>';
+
+  html += '<h2>О чём урок</h2><p>' + esc(lesson.intro) + '</p>';
+
+  /* Человеческое название ползунка берём из самой симуляции: в данных урока
+     лежит только внутренний ключ вроде dawdle, а учителю нужно «рассеянность». */
+  var def = ROY.getSim(lesson.sim);
+  function knobLabel(key){
+    if (!def) return key;
+    for (var i = 0; i < def.params.length; i++) {
+      if (def.params[i].key === key) return def.params[i].label;
+    }
+    return key;
+  }
+
+  if (knobs.length){
+    html += '<h2>Что показать и что покрутить</h2>' +
+            '<p class="field__note" style="margin:-.2rem 0 .6rem">Кнопка «Стоп-кадр» ' +
+            'под сценой останавливает картинку, чтобы разобрать её с классом. ' +
+            'Ползунки на стоп-кадре продолжают работать.</p>' +
+            '<ol class="knobs">';
+    knobs.forEach(function(b){
+      html += '<li><b>' + esc(knobLabel(b.param)) + '</b><span>' +
+              esc(b.caption || b.title) + '</span></li>';
+    });
+    html += '</ol>';
+  }
+
+  html += '<h2>Вопросы классу</h2>';
+  (lesson.quiz || []).forEach(function(item, i){
+    html += '<div class="ask"><p>' + (i + 1) + '. ' + esc(item.q) + '</p>';
+    if (withAnswers){
+      /* В учительской версии — разбор всех вариантов, а не «правильный ответ»:
+         в уроке правильных ответов нет by design. */
+      html += '<div class="answers">';
+      item.options.forEach(function(o){
+        html += '<p style="margin:0 0 .35rem"><b>' + esc(o.label) + '</b> — ' + esc(o.response) + '</p>';
+      });
+      html += '</div>';
+    } else {
+      html += lines(2);
+    }
+    html += '</div>';
+  });
+
+  html += '<h2>Что я заметил сам</h2>' + lines(withAnswers ? 2 : 4);
+
+  html += '<div class="sheet__foot">' +
+            '<span>oum1d.github.io/roy/lesson.html?id=' + esc(lesson.id) + '</span>' +
+            '<span>' + (lesson.free ? 'урок открыт без подписки' : 'урок по подписке') + '</span>' +
+          '</div>';
+
+  sheet.innerHTML = html;
+
+  document.getElementById('btn-print').addEventListener('click', function(){
+    window.print();
+  });
+})();
+</script>
+</body>
+</html>

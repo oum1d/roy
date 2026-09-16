@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Выбор шрифта · РОЙ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prata&family=Forum&family=Cormorant+Garamond:wght@500;600&family=Playfair+Display:wght@500;600&family=Oswald:wght@400;500&family=Unbounded:wght@400;600&family=Yeseva+One&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  body{margin:0;background:#FBFAF6;color:#16181A;padding:18px 26px;
+       font:15px/1.6 "Golos Text",system-ui,sans-serif}
+  .row{border-top:1px solid #E4E2DA;padding:14px 0 18px}
+  .tag{font:500 10px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;
+       text-transform:uppercase;color:#6E7278;margin-bottom:8px}
+  h1{margin:0 0 .25em;font-size:44px;line-height:1.1;letter-spacing:-.01em;max-width:17ch}
+  .card{margin:0;font-size:17px;line-height:1.25}
+  .body{max-width:60ch;margin:.4em 0 0;color:#16181A;font-size:15px}
+
+  .prata h1,.prata .card{font-family:"Prata",Georgia,serif;font-weight:400}
+  .forum h1,.forum .card{font-family:"Forum",Georgia,serif;font-weight:400}
+  .corm  h1,.corm  .card{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600}
+  .play  h1,.play  .card{font-family:"Playfair Display",Georgia,serif;font-weight:500}
+  .osw   h1,.osw   .card{font-family:"Oswald",Impact,sans-serif;font-weight:500}
+  .unb   h1,.unb   .card{font-family:"Unbounded",system-ui,sans-serif;font-weight:600}
+  .unb   h1{font-size:38px}
+  .yes   h1,.yes   .card{font-family:"Yeseva One",Georgia,serif;font-weight:400}
+</style>
+</head>
+<body>
+<script>
+var FACES = [
+  ['prata', 'Prata — дидон, рисовался под кириллицу'],
+  ['forum', 'Forum — римские капитель­ные пропорции'],
+  ['corm',  'Cormorant Garamond 600 — тонкая, гравюрная'],
+  ['play',  'Playfair Display 500 — журнальный контраст'],
+  ['osw',   'Oswald 500 — узкий гротеск, техническая табличка'],
+  ['unb',   'Unbounded 600 — геометрический дисплей'],
+  ['yes',   'Yeseva One — плакатная антиква']
+];
+
+document.write(FACES.map(function(f){
+  return '<div class="row ' + f[0] + '">' +
+    '<p class="tag">' + f[1] + '</p>' +
+    '<h1>Ни один скворец не знает, куда летит стая</h1>' +
+    '<p class="card">Почему трещины в глине сходятся под 120°</p>' +
+    '<p class="body">Стая скворцов перед ночёвкой похожа на одно живое существо. ' +
+    'Кажется, что кто-то ей управляет. Не управляет никто. — этот абзац везде ' +
+    'набран Golos Text, меняется только заголовок.</p>' +
+  '</div>';
+}).join(''));
+</script>
+</body>
+</html>

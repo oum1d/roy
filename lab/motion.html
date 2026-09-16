@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Выключенное движение · РОЙ</title>
+<style>
+  body{margin:0;background:#FBFAF6;color:#16181A;
+       font:13px/1.5 ui-monospace,"IBM Plex Mono",Consolas,monospace;padding:14px}
+  h1{font:600 14px/1.3 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;margin:0 0 12px}
+  table{border-collapse:collapse;width:860px;font-size:12px}
+  th,td{text-align:left;padding:3px 8px;border-bottom:1px solid #E4E2DA}
+  th{color:#6E7278;font-weight:500}
+  .bad{color:#A65543;font-weight:600}
+  iframe{width:1150px;height:820px;border:0;position:absolute;left:-4000px;top:0}
+  #sum{margin:12px 0;padding:8px 10px;border:1px solid #B9BCB6}
+</style>
+</head>
+<body>
+<h1>Когда движение выключено</h1>
+<div id="sum">идёт проверка…</div>
+<table id="out"><thead><tr><th>страница</th><th>что проверяем</th><th>вышло</th><th>ждём</th></tr></thead><tbody></tbody></table>
+<div id="frame"></div>
+
+<script>
+/* Требование клиента: при выключенном движении ничего не запускается само,
+   но сайтом можно пользоваться полностью — ползунки обязаны работать и
+   пересчитывать картинку. Проверяем именно это, а не то, что «всё замерло».
+
+   Системную настройку в headless не подделать, поэтому пользуемся тем же
+   переключателем, что и движок: ?motion=off. */
+
+var tbody = document.querySelector('#out tbody');
+var box = document.getElementById('frame');
+var bad = 0;
+
+function row(page, what, got, want, isBad){
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td>' + page + '</td><td>' + what + '</td>' +
+    '<td class="' + (isBad ? 'bad' : '') + '">' + got + '</td><td>' + want + '</td>';
+  tbody.appendChild(tr);
+  if (isBad) bad++;
+}
+
+function open(url, done){
+  var f = document.createElement('iframe');
+  f.src = '../' + url;
+  f.addEventListener('load', function(){
+    done(f.contentDocument, f.contentWindow, function(){ f.remove(); });
+  });
+  box.appendChild(f);
+}
+
+/* --- главная: вступления нет, текст на месте с первого кадра --- */
+open('index.html?motion=off', function(d, w, close){
+  var copy = d.getElementById('hero-copy');
+  var play = d.getElementById('hero-play');
+
+  var hidden = copy.classList.contains('is-away');
+  row('главная', 'текст первого экрана', hidden ? 'спрятан' : 'виден сразу', 'виден сразу', hidden);
+
+  var playHidden = play.hidden;
+  row('главная', 'кнопка «Запустить»', playHidden ? 'спрятана' : 'показана', 'показана', playHidden);
+
+  var hint = (d.getElementById('hero-hint').textContent || '');
+  row('главная', 'подпись объясняет, что делать',
+      hint.indexOf('выключено') !== -1 ? 'про выключенное движение' : hint,
+      'про выключенное движение', hint.indexOf('выключено') === -1);
+
+  /* Ползунок обязан работать даже при стоящей сцене. */
+  var slider = d.querySelector('#hero-rules input[type=range]');
+  var before = d.getElementById('hero-canvas').toDataURL();
+  slider.value = slider.max;
+  slider.dispatchEvent(new w.Event('input', { bubbles: true }));
+  var after = d.getElementById('hero-canvas').toDataURL();
+  row('главная', 'ползунок пересчитывает стоящую сцену',
+      before === after ? 'картинка не изменилась' : 'картинка пересчитана',
+      'картинка пересчитана', before === after);
+
+  close();
+  lesson();
+});
+
+/* --- урок: сцена ждёт разрешения, но параметры живые --- */
+function lesson(){
+  open('lesson.html?id=starlings&motion=off', function(d, w, close){
+    var start = d.getElementById('stage-start');
+    row('урок', 'приглашение «Запустить»', start.hidden ? 'спрятано' : 'показано',
+        'показано', start.hidden);
+
+    var freeze = d.getElementById('btn-freeze');
+    row('урок', 'кнопка стоп-кадра знает, что сцена стоит',
+        freeze.textContent.trim(), 'Продолжить', freeze.textContent.trim() !== 'Продолжить');
+
+    var canvas = d.getElementById('stage');
+    var slider = d.querySelector('#controls input[type=range]');
+    var before = canvas.toDataURL();
+    slider.value = slider.min;
+    slider.dispatchEvent(new w.Event('input', { bubbles: true }));
+    row('урок', 'ползунок пересчитывает стоящую сцену',
+        before === canvas.toDataURL() ? 'картинка не изменилась' : 'картинка пересчитана',
+        'картинка пересчитана', before === canvas.toDataURL());
+
+    /* Нажали «Запустить» — приглашение уходит, стоп-кадр переключается. */
+    d.getElementById('stage-play').click();
+    row('урок', 'после «Запустить»',
+        (start.hidden ? 'приглашение убрано' : 'приглашение осталось') + ' · ' + freeze.textContent.trim(),
+        'приглашение убрано · Стоп-кадр',
+        !start.hidden || freeze.textContent.trim() !== 'Стоп-кадр');
+
+    close();
+    catalog();
+  });
+}
+
+/* --- каталог: миниатюры не крутятся, но нарисованы --- */
+function catalog(){
+  open('catalog.html?motion=off', function(d, w, close){
+    var c = d.querySelector('#cards canvas');
+    var painted = false;
+    try {
+      var g = c.getContext('2d');
+      var im = g.getImageData(0, 0, c.width, c.height).data;
+      /* Ищем хоть один тёмный пиксель: пустая бумага — значит не рисовали. */
+      for (var i = 0; i < im.length; i += 4 * 37){ if (im[i] < 200) { painted = true; break; } }
+    } catch (e) {}
+    row('каталог', 'миниатюра всё-таки нарисована',
+        painted ? 'на ней есть чернила' : 'пустая бумага', 'на ней есть чернила', !painted);
+
+    close();
+    finish();
+  });
+}
+
+function finish(){
+  document.getElementById('sum').textContent =
+    bad ? 'ОШИБОК: ' + bad : 'ВЫКЛЮЧЕННОЕ ДВИЖЕНИЕ В ПОРЯДКЕ: 9 проверок';
+  document.title = bad ? 'MOTION ПРОБЛЕМ ' + bad : 'MOTION OK';
+}
+</script>
+</body>
+</html>

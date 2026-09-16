@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Каталог уроков — РОЙ</title>
+<meta name="description" content="24 урока о природных явлениях. Фильтры по разделу, классу и длительности. У каждого урока — живая миниатюра работающей симуляции.">
+<link rel="canonical" href="https://oum1d.github.io/roy/catalog.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Каталог уроков — РОЙ">
+<meta property="og:description" content="24 явления: движение, формы, вещество, сообщества.">
+<meta property="og:image" content="https://oum1d.github.io/roy/assets/img/og-cover.png">
+<meta name="theme-color" content="#FBFAF6">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/roy.css">
+<style>
+  .catalog-head{padding-block:var(--gap) 0}
+  .filters{margin-block:var(--gap)}
+  .filter{min-width:150px}
+  .results{margin-block:var(--gap) clamp(48px,6vw,90px)}
+  .empty{padding:3rem 0;color:var(--muted)}
+  .card__thumb .soon{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-family:var(--mono);font-size:.6875rem;letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+  .card__badges{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.15rem}
+
+  .search{max-width:520px;margin-block:var(--gap) 0}
+  .search__box{position:relative}
+  .search input{
+    width:100%;font:inherit;font-size:.9375rem;
+    padding:.62rem 5.6rem .62rem .8rem;background:var(--paper);
+    border:1px solid var(--line);border-radius:var(--radius);color:var(--ink);
+  }
+  .search input:focus{border-color:var(--ultra)}
+  .search__clear{
+    position:absolute;right:.3rem;top:50%;transform:translateY(-50%);
+    border:0;background:none;color:var(--muted);cursor:pointer;
+    font:500 .6875rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+    padding:.45rem .5rem;border-radius:var(--radius);
+  }
+  .search__clear:hover{color:var(--clay)}
+
+  /* Подсветка — как маркером по тетради, а не выделением мышью. */
+  mark{background:rgba(196,144,60,.3);color:inherit;padding:0 .06em}
+  .card__why{
+    font-size:.8125rem;line-height:1.45;color:var(--muted);
+    margin:.15rem 0 0;border-left:2px solid var(--grid);padding-left:.5rem;
+  }
+</style>
+</head>
+<body class="paper-grid--soft">
+
+<a class="skip" href="#main">Перейти к содержанию</a>
+
+<header class="site-head">
+  <div class="wrap site-head__in">
+    <a class="brand" href="index.html">РОЙ <span>явления в движении</span></a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav">Меню</button>
+    <nav class="site-nav" id="nav" aria-label="Основная навигация">
+      <a href="catalog.html" aria-current="page">Уроки</a>
+      <a href="teachers.html">Учителям</a>
+      <a href="pricing.html">Тарифы</a>
+      <a href="account.html">Кабинет</a>
+      <a class="btn btn--small btn--cta" href="pricing.html">Оформить подписку</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <div class="catalog-head">
+    <p class="label">Каталог</p>
+    <h1>Двадцать четыре явления</h1>
+    <p class="lead">Каждое можно взять за ползунок. Все двадцать четыре готовы: девять открыты бесплатно.</p>
+    <p class="progress-line" id="progress"></p>
+  </div>
+
+  <form class="search" id="search" role="search" onsubmit="return false">
+    <label class="filter__legend" for="q">Поиск по урокам</label>
+    <div class="search__box">
+      <input type="search" id="q" name="q" autocomplete="off"
+             placeholder="трещины, пробка, муравьи, почему…"
+             aria-describedby="q-note">
+      <button class="search__clear" type="button" id="q-clear" hidden>Очистить</button>
+    </div>
+    <span class="field__note" id="q-note">Ищет и по названию, и по тексту урока.</span>
+  </form>
+
+  <form class="filters" id="filters" aria-label="Фильтры каталога">
+    <div class="filter">
+      <p class="filter__legend" id="f-section">Раздел</p>
+      <ul class="chips" role="group" aria-labelledby="f-section" data-group="section"></ul>
+    </div>
+    <div class="filter">
+      <p class="filter__legend" id="f-grade">Сложность</p>
+      <ul class="chips" role="group" aria-labelledby="f-grade" data-group="grade"></ul>
+    </div>
+    <div class="filter">
+      <p class="filter__legend" id="f-min">Длительность</p>
+      <ul class="chips" role="group" aria-labelledby="f-min" data-group="minutes"></ul>
+    </div>
+    <div class="filter">
+      <p class="filter__legend" id="f-free">Доступ</p>
+      <ul class="chips" role="group" aria-labelledby="f-free" data-group="free"></ul>
+    </div>
+  </form>
+
+  <div class="results">
+    <p class="label" id="count" aria-live="polite"></p>
+    <ul class="cards" id="cards" style="margin-top:.8rem"></ul>
+    <p class="empty" id="empty" hidden>Под эти условия ничего не подходит. Снимите часть фильтров.</p>
+  </div>
+
+</main>
+
+<footer class="site-foot">
+  <div class="wrap" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <span class="mono" style="font-size:.75rem">© <span id="year">2026</span> РОЙ</span>
+    <span><a href="index.html">Главная</a> · <a href="pricing.html">Тарифы</a> · <a href="privacy.html">Политика конфиденциальности</a></span>
+  </div>
+</footer>
+
+<script src="assets/js/engine.js"></script>
+<script src="assets/js/sims.js"></script>
+<script src="assets/js/sims2.js"></script>
+<script src="assets/js/sims3.js"></script>
+<script src="assets/js/sims4.js"></script>
+<script src="assets/js/sims5.js"></script>
+<script src="data/lessons.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var lessons = ROY.lessons();
+  var state = { section: null, grade: null, minutes: null, free: null, q: '' };
+  var scenes = [];
+
+  /* -------------------------------------------------------------- поиск */
+
+  /* Мягкая нормализация: только регистр и ё→е. Длина строки не меняется,
+     поэтому позиции найденного совпадают с позициями в исходном тексте и
+     подсветку можно ставить точно. */
+  function soft(s){ return String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е'); }
+
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
+    });
+  }
+
+  function terms(s){
+    var raw = soft(s).split(/[^0-9a-zа-я]+/);
+    var out = [];
+    for (var i = 0; i < raw.length; i++) if (raw[i].length > 1) out.push(raw[i]);
+    return out;
+  }
+
+  /* Один раз собираем текст урока целиком: заголовок, подводка, все абзацы,
+     подписи к рисункам, вопросы. Искать «трещины» надо и там, где это слово
+     стоит в третьем абзаце, а не только в названии. */
+  var index = {};
+  lessons.forEach(function(l){
+    var head = [l.title, l.lead, l.intro].filter(Boolean);
+    var body = [];
+    (l.blocks || []).forEach(function(b){ body.push(b.title, b.text); });
+    (l.nature || []).forEach(function(f){ if (f.caption) body.push(f.caption); });
+    (l.quiz  || []).forEach(function(z){ body.push(z.q); });
+    body = body.filter(Boolean);
+    var keys = (window.ROY_KEYWORDS || {})[l.id] || '';
+    index[l.id] = {
+      body: body,
+      keys: keys,
+      hay: soft(head.concat(body, [l.section, l.grade, keys]).join(' · '))
+    };
+  });
+
+  /* Русский язык склоняется, а поиск ищет подстроку: «светляк» не найдёт
+     «светлячков». Поэтому слово, которого нет нигде, укорачиваем с хвоста —
+     максимум на три буквы и не короче четырёх.
+
+     Важно, что основу выбираем один раз по всему каталогу, а не отдельно в
+     каждом уроке. Иначе выходит так: в уроке про волны «скворц» не нашлось,
+     оно ужалось до «скво» — и урок нашёлся по слову «сквозь». */
+  var stemCache = { q: null, list: null };
+
+  function stems(){
+    if (stemCache.q === state.q) return stemCache.list;
+
+    var t = terms(state.q), out = [];
+    for (var i = 0; i < t.length; i++){
+      var w = t[i], min = Math.max(4, w.length - 3), got = null;
+      for (var len = w.length; len >= min && !got; len--){
+        var cut = w.slice(0, len);
+        for (var k = 0; k < lessons.length; k++){
+          if (index[lessons[k].id].hay.indexOf(cut) !== -1){ got = cut; break; }
+        }
+      }
+      out.push(got || w);
+    }
+
+    stemCache = { q: state.q, list: out };
+    return out;
+  }
+
+  /* Что именно нашлось в этом уроке. Тот же список идёт в подсветку —
+     иначе «светляк» подсвечивать негде, в тексте стоит «светлячки». */
+  function found(l){
+    var t = stems(), hay = index[l.id].hay;
+    for (var i = 0; i < t.length; i++) if (hay.indexOf(t[i]) === -1) return null;
+    return t;
+  }
+
+  function hits(l){
+    return found(l) !== null;
+  }
+
+  /* Подсветка кусками: экранируем каждый отрезок отдельно, поэтому запрос
+     не может протащить разметку в вывод. */
+  function mark(raw, t){
+    var s = soft(raw), found = [];
+    t.forEach(function(w){
+      for (var i = s.indexOf(w); i !== -1; i = s.indexOf(w, i + w.length)) found.push([i, i + w.length]);
+    });
+    found.sort(function(a, b){ return a[0] - b[0]; });
+    var out = '', pos = 0;
+    for (var k = 0; k < found.length; k++){
+      if (found[k][0] < pos) continue;
+      out += esc(raw.slice(pos, found[k][0])) +
+             '<mark>' + esc(raw.slice(found[k][0], found[k][1])) + '</mark>';
+      pos = found[k][1];
+    }
+    return out + esc(raw.slice(pos));
+  }
+
+  /* Если совпало не в названии — показываем, где именно. Иначе непонятно,
+     почему урок про молнию нашёлся по слову «ветвится». */
+  function why(l, t){
+    if (!t || !t.length) return '';
+    if (soft(l.title).indexOf(t[0]) !== -1) return '';
+
+    var fields = index[l.id].body;
+    for (var f = 0; f < fields.length; f++){
+      var at = soft(fields[f]).indexOf(t[0]);
+      if (at === -1) continue;
+
+      var raw = fields[f];
+      var from = Math.max(0, at - 55);
+      var to = Math.min(raw.length, at + t[0].length + 85);
+      if (from > 0){ var sp = raw.indexOf(' ', from); if (sp !== -1 && sp < at) from = sp + 1; }
+      var cut = raw.slice(from, to);
+      return (from > 0 ? '…' : '') + mark(cut, t) + (to < raw.length ? '…' : '');
+    }
+
+    /* Слова нет ни в названии, ни в тексте — значит сработал термин из
+       списка синонимов. Честно говорим, по какому именно. */
+    var keys = soft(index[l.id].keys).split(/\s+/);
+    for (var w = 0; w < keys.length; w++){
+      if (keys[w].indexOf(t[0]) !== -1){
+        return 'нашлось по слову «' + esc(keys[w]) + '» — в самом уроке оно названо проще';
+      }
+    }
+    return '';
+  }
+
+  /* ------------------------------------------------------------- фильтры */
+
+  var GROUPS = {
+    section: ['Движение', 'Формы', 'Вещество', 'Сообщества'],
+    grade:   ['5–7', '8–9', '10–11', 'взрослым'],
+    minutes: ['5', '10', '15', '20'],
+    free:    ['доступно бесплатно']
+  };
+
+  Object.keys(GROUPS).forEach(function(group){
+    var box = document.querySelector('[data-group="' + group + '"]');
+    GROUPS[group].forEach(function(value){
+      var li = document.createElement('li');
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = group === 'minutes' ? value + ' мин' : value;
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', function(){
+        var on = b.getAttribute('aria-pressed') === 'true';
+        Array.prototype.forEach.call(box.querySelectorAll('.chip'), function(c){
+          c.setAttribute('aria-pressed', 'false');
+        });
+        b.setAttribute('aria-pressed', on ? 'false' : 'true');
+        state[group] = on ? null : value;
+        render();
+      });
+      li.appendChild(b);
+      box.appendChild(li);
+    });
+  });
+
+  function matches(l){
+    if (state.section && l.section !== state.section) return false;
+    if (state.grade && l.grade !== state.grade) return false;
+    if (state.minutes && String(l.minutes) !== state.minutes) return false;
+    if (state.free && !l.free) return false;
+    if (!hits(l)) return false;
+    return true;
+  }
+
+  /* --------------------------------------------------------------- вывод */
+
+  var cards = document.getElementById('cards');
+
+  function render(){
+    /* Старые сцены обязательно снимаем с учёта: иначе движок продолжит
+       считать миниатюры, которых уже нет в документе. */
+    scenes.forEach(function(s){ s.destroy(); });
+    scenes = [];
+    cards.innerHTML = '';
+
+    var list = lessons.filter(matches);
+
+    var empty = document.getElementById('empty');
+    empty.hidden = list.length > 0;
+    empty.textContent = state.q
+      ? 'По запросу «' + state.q + '» ничего не нашлось. Попробуйте одно слово покороче.'
+      : 'Под эти условия ничего не подходит. Снимите часть фильтров.';
+
+    document.getElementById('count').textContent =
+      list.length === lessons.length
+        ? 'Показаны все ' + lessons.length
+        : 'Найдено ' + list.length + ' из ' + lessons.length;
+
+    list.forEach(function(l){
+      var ready = l.status === 'ready';
+      var done = ROY.store.isDone(l.id);
+
+      var li = document.createElement('li');
+      var el = document.createElement(ready ? 'a' : 'div');
+      el.className = 'card';
+      if (ready) el.href = 'lesson.html?id=' + l.id;
+
+      var thumb = document.createElement('div');
+      thumb.className = 'card__thumb';
+
+      if (l.sim){
+        var c = document.createElement('canvas');
+        c.setAttribute('aria-hidden', 'true');
+        thumb.appendChild(c);
+      } else {
+        thumb.innerHTML = '<span class="soon">готовится</span>';
+      }
+
+      var badges = '';
+      if (l.free) badges += '<span class="badge badge--free">бесплатно</span>';
+      else if (ready) badges += '<span class="badge badge--lock">по подписке</span>';
+      if (!ready) badges += '<span class="badge badge--soon">готовится</span>';
+      if (done) badges += '<span class="badge badge--done">пройдено</span>';
+
+      var stems = found(l) || [];
+      var where = why(l, stems);
+
+      var body = document.createElement('div');
+      body.className = 'card__body';
+      body.innerHTML =
+        '<div class="card__badges">' + badges + '</div>' +
+        '<h2 class="card__title">' + mark(l.title, stems) + '</h2>' +
+        (where ? '<p class="card__why">' + where + '</p>' : '') +
+        '<p class="card__meta">' +
+          '<span>' + l.section + '</span>' +
+          '<span>' + l.grade + '</span>' +
+          '<span>' + l.minutes + ' мин</span>' +
+        '</p>';
+
+      el.appendChild(thumb);
+      el.appendChild(body);
+      li.appendChild(el);
+      cards.appendChild(li);
+
+      if (l.sim){
+        var scene = ROY.mountThumb(thumb.querySelector('canvas'), l.sim);
+        if (scene) scenes.push(scene);
+      }
+    });
+  }
+
+  /* --------------------------------------------------------- поле поиска */
+
+  var input = document.getElementById('q');
+  var clear = document.getElementById('q-clear');
+  var timer = 0;
+
+  function apply(){
+    clear.hidden = !state.q;
+    /* Каждый набор символов пересобирает карточки, а с ними — миниатюры.
+       Поэтому не на каждое нажатие, а через паузу. */
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      render();
+      /* Адрес со строкой поиска можно переслать коллеге. На file:// браузер
+         менять адрес запрещает — тогда просто работаем без него. */
+      try {
+        var base = location.pathname.split('/').pop() || 'catalog.html';
+        history.replaceState(null, '', state.q ? base + '?q=' + encodeURIComponent(state.q) : base);
+      } catch (e) {}
+    }, 150);
+  }
+
+  input.addEventListener('input', function(){
+    state.q = input.value.trim();
+    apply();
+  });
+
+  input.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && input.value){
+      e.preventDefault();
+      input.value = '';
+      state.q = '';
+      apply();
+    }
+  });
+
+  clear.addEventListener('click', function(){
+    input.value = '';
+    state.q = '';
+    apply();
+    input.focus();
+  });
+
+  var fromUrl = ROY.query().q;
+  if (fromUrl){
+    input.value = fromUrl;
+    state.q = String(fromUrl).trim();
+    clear.hidden = false;
+  }
+
+  /* ------------------------------------------------------------ прогресс */
+
+  var done = ROY.store.doneCount();
+  document.getElementById('progress').innerHTML =
+    '<span>Пройдено ' + String(done).padStart(2, '0') + ' из ' + lessons.length + '</span>' +
+    '<span class="progress-line__bar"><i style="width:' +
+      Math.round(done / lessons.length * 100) + '%"></i></span>';
+
+  render();
+})();
+</script>
+</body>
+</html>
