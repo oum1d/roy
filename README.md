@@ -417,11 +417,14 @@ Space Grotesk, Instrument Sans и Spline Sans Mono на Google Fonts кирил�
 нет вовсе, и на русском тексте они молча подменяются системным шрифтом.
 Сравнить кандидатов на настоящем заголовке сайта можно в `lab/type.html`.
 
-Подключены с Google Fonts. Это внешний запрос, видимый их серверам. Если
-это неприемлемо по GDPR или нужно работать офлайн — скачайте Oswald,
-Golos Text и IBM Plex Mono, положите в `assets/fonts/`, замените `<link>` на
-`@font-face` в `roy.css`. Резервные шрифты в стеке уже прописаны, без
-внешних файлов сайт остаётся читаемым.
+Лежат в проекте: файлы в `assets/fonts/`, подключение в
+`assets/css/fonts.css` (с 17.09.2026, до этого грузились с Google Fonts).
+Внешних запросов нет — адрес посетителя не уходит Google (GDPR), сайт
+работает офлайн, а первый текст на медленном мобильном интернете
+появляется на 2–3 секунды раньше. Наборы символов: кириллица, латиница,
+расширенная латиница. Лицензия всех трёх — SIL OFL 1.1.
+Стенд `lab/type.html` по-прежнему берёт кандидатов с Google Fonts:
+он служебный и в навигацию сайта не входит.
 
 ---
 
@@ -588,8 +591,8 @@ perf     ПЛАВНОСТЬ В ПОРЯДКЕ
 
 - HTTPS и HSTS.
 - Заголовки: `Content-Security-Policy` (минимум `default-src 'self'`,
-  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-  `font-src https://fonts.gstatic.com`), `X-Content-Type-Options: nosniff`,
+  `style-src 'self' 'unsafe-inline'`, `font-src 'self'`),
+  `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: strict-origin-when-cross-origin`,
   `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
 - Валидация и нормализация всего ввода на сервере, ограничение частоты
