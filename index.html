@@ -485,6 +485,7 @@
   var copy = document.getElementById('hero-copy');
   var rules = document.getElementById('hero-rules');
   var targetsReady = false;
+  var compact = false;       // узкий экран: собираем одно «24»
 
   function buildTargets(){
     if (!hero || !hero.impl.setTargets) return;
@@ -497,25 +498,50 @@
        выше верхнего края текста. */
     var size = Math.min(hero.W * 0.125, hero.H * 0.19);
 
-    /* На узком экране надпись не собираем вовсе. Буквы выходят меньше
-       72 пикселей, и из нескольких сотен птиц складывается не «24 явления»,
-       а серые пятна. К тому же на телефоне заголовок стоит выше, и пятна
-       ложатся прямо на него. Число 24 и так есть в тексте под заголовком —
-       на телефоне стая просто летает. */
-    if (size < 72){
-      targetsReady = false;
-      stopIntro();              // окно сузили посреди вступления
-      hero.impl.setTargets(null);
-      hero.impl.setMorph(0);
-      showCopy(true);
-      return;
-    }
+    /* Узкий экран. «24 явления» здесь выходит буквами меньше 72 пикселей,
+       и из нескольких сотен птиц складываются серые пятна, а не слова.
+       Поэтому на телефоне стая собирается в одно крупное «24» по центру,
+       а когда появляется текст, число рассыпается обратно в стаю: буквы
+       и заголовок никогда не стоят на экране одновременно. */
+    compact = size < 72;
 
-    var pts = ROY.samplePoints('24\nявления', hero.W, hero.H, n, {
-      size: size,
-      cy: 0.26
-    });
+    var pts = compact
+      ? ROY.samplePoints('24', hero.W, hero.H, n, {
+          size: Math.min(hero.W * 0.62, hero.H * 0.32),
+          cy: 0.42
+        })
+      : ROY.samplePoints('24\nявления', hero.W, hero.H, n, {
+          size: size,
+          cy: 0.26
+        });
     if (pts){ hero.impl.setTargets(pts); targetsReady = true; }
+
+    /* Окно сузили, когда текст уже на экране: число не должно
+       собраться поверх заголовка. */
+    if (compact && copyShown) dissolve();
+  }
+
+  /* Текущее значение сборки: рассыпать число на телефоне надо с того
+     места, где оно сейчас, а не рывком с полностью собранного. */
+  var morphNow = 0;
+  function setMorph(v){
+    morphNow = v;
+    hero.impl.setMorph(v);
+  }
+
+  var dissolveRaf = 0;
+  function dissolve(){
+    if (!hero) return;
+    if (dissolveRaf) window.cancelAnimationFrame(dissolveRaf);
+    var from = morphNow, t0 = 0;
+    function step(now){
+      if (!t0) t0 = now;
+      var t = (now - t0) / 700;
+      if (t >= 1){ setMorph(0); dissolveRaf = 0; return; }
+      setMorph(from * (1 - smoothstep(0, 1, t)));
+      dissolveRaf = window.requestAnimationFrame(step);
+    }
+    dissolveRaf = window.requestAnimationFrame(step);
   }
 
   function smoothstep(a, b, x){
@@ -570,6 +596,13 @@
     copyShown = on;
     copy.classList.toggle('is-away', !on);
     rules.classList.toggle('is-away', !on);
+
+    /* На телефоне текст и число не должны стоять вместе: текст выходит —
+       число рассыпается обратно в стаю. */
+    if (on && compact && targetsReady){
+      stopIntro();
+      dissolve();
+    }
   }
 
   function startIntro(){
@@ -594,7 +627,7 @@
       var t = (now - t0 - INTRO_FLY) / INTRO_DUR;
       if (t < 0) t = 0;
 
-      hero.impl.setMorph(t >= 1 ? 1 : smoothstep(0, 1, t));
+      setMorph(t >= 1 ? 1 : smoothstep(0, 1, t));
 
       if (t >= 1){ introRunning = false; return; }
       introRaf = window.requestAnimationFrame(frame);
@@ -623,10 +656,10 @@
     window.requestAnimationFrame(function(){
       ticking = false;
       if (introRunning) return;      // вступление ведёт морф само
-      if (!targetsReady) return;     // на узком экране надписи нет
+      if (!targetsReady || compact) return;   // на телефоне число уже рассыпано
 
       /* Прокрутка рассыпает надпись обратно в стаю. */
-      hero.impl.setMorph(1 - smoothstep(0.02, 0.34, p));
+      setMorph(1 - smoothstep(0.02, 0.34, p));
     });
   }
 
