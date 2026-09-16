@@ -540,6 +540,33 @@
     scene.impl.draw();
   };
 
+  /* Тот же прогрев, но без зависания: шаги нарезаются кусками по ~8 мс,
+     сцены ждут в общей очереди. Синхронный прогрев нескольких миниатюр
+     занимал главный поток почти на секунду — страница в это время не
+     отвечала на нажатия. Миниатюра проявляется постепенно. */
+  var warmQueue = [];
+  var warmTimer = 0;
+
+  function warmTick() {
+    warmTimer = 0;
+    var end = performance.now() + 8;
+    while (warmQueue.length && performance.now() < end) {
+      var job = warmQueue[0];
+      if (job.scene.dead) { warmQueue.shift(); continue; }
+      job.scene.impl.step();
+      if (--job.left <= 0) { job.scene.impl.draw(); warmQueue.shift(); }
+    }
+    if (warmQueue.length) {
+      if (!warmQueue[0].scene.dead) warmQueue[0].scene.impl.draw();
+      warmTimer = setTimeout(warmTick, 0);
+    }
+  }
+
+  ROY.warmupLater = function (scene, steps) {
+    warmQueue.push({ scene: scene, left: Math.min(steps | 0, 40000) });
+    if (!warmTimer) warmTimer = setTimeout(warmTick, 0);
+  };
+
   ROY.query = function () {
     var out = {};
     window.location.search.replace(/^\?/, '').split('&').forEach(function (kv) {
